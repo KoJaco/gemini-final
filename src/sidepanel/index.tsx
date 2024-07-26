@@ -1,3 +1,4 @@
+import { Providers } from "@/lib/providers"
 import React from "react"
 
 import { sendToBackground } from "@plasmohq/messaging"
@@ -17,9 +18,11 @@ const Sidepanel = () => {
   }
 
   return (
-    <div>
-      Sidepanel<button onClick={openWelcomePage}>Open Welcome Page</button>
-    </div>
+    <Providers>
+      <div>
+        Sidepanel<button onClick={openWelcomePage}>Open Welcome Page</button>
+      </div>
+    </Providers>
   )
 }
 
