@@ -25,6 +25,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "embla-carousel-react": "^8.1.7",
+    "lucide-react": "^0.416.0",
     "plasmo": "0.88.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
