@@ -17,16 +17,16 @@ export const getStyle = () => {
   return style
 }
 
-const ContextMenu = async () => {
+const ContextMenu = () => {
   const [isVisible, setIsVisible] = useState(false)
 
-  const response = await sendToBackground({
-    name: "ping",
-    body: {
-      id: "123"
-    },
-    extensionId: "jmdmdppbobnhekmijbdebjhoeflddbii" // details in web extension manager
-  })
+  // const response = await sendToBackground({
+  //   name: "ping",
+  //   body: {
+  //     id: "123"
+  //   },
+  //   extensionId: "jmdmdppbobnhekmijbdebjhoeflddbii" // details in web extension manager
+  // })
 
   return (
     <>
