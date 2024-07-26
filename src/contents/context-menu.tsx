@@ -1,3 +1,4 @@
+import ShadowWrapper from "@/components/shadow-wrapper"
 import cssText from "data-text:@/style.css"
 import type { PlasmoCSConfig } from "plasmo"
 import { useState } from "react"
@@ -31,9 +32,11 @@ const ContextMenu = () => {
   return (
     <>
       {isVisible && (
-        <div className="h-screen w-screen z-50 flex items-center justify-center bg-black/50">
-          {/* <CountButton /> */} I'm A content script
-        </div>
+        <ShadowWrapper>
+          <div className="h-screen w-screen z-50 flex items-center justify-center bg-black/50">
+            {/* <CountButton /> */} I'm A content script
+          </div>
+        </ShadowWrapper>
       )}
     </>
   )
