@@ -54,7 +54,7 @@ const ThreadsView = ({
     const res = await setLatestChatThread(thread.threadId)
 
     if (res.success) {
-      console.log(res.message)
+      // console.log(res.message)
       setCurrentThread(thread)
       setOpenView("main")
     } else {

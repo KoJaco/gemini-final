@@ -7,7 +7,7 @@ import { useAppStore } from "@/lib/stores/appStore"
 import type { Message } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import clsx from "clsx"
-import { memo, useEffect, useState, type FC } from "react"
+import React, { memo, useEffect, useState, type FC } from "react"
 import ReactMarkdown, { type Options } from "react-markdown"
 import remarkGfm from "remark-gfm"
 
@@ -26,11 +26,12 @@ export function ChatMessage({
 }: ChatMessageProps) {
   const [displayedText, setDisplayedText] = useState("")
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [isHovered, setIsHovered] = useState(false)
 
   // // console.log(displayedText);
   const { typewriter, setTypewriter } = useAppStore()
 
-  console.log(message)
+  // console.log(message)
 
   useEffect(() => {
     if (typewriter) {
@@ -57,57 +58,13 @@ export function ChatMessage({
     }
   }, [currentIndex, speed, message])
 
-  // useEffect(() => {
-  //   if (typewriter) {
-  //     if (message.content.length > 256 && message.role === "user") {
-  //       setDisplayedText(message.content)
-  //     } else {
-  //       // randomised speed typewriter.
-  //       let index = 0
-  //       let isPaused = false
-  //       let timeout: NodeJS.Timeout
-
-  //       const typeCharacter = () => {
-  //         if (isPaused) return
-
-  //         if (index < message.content.length - 1) {
-  //           setDisplayedText((prev) => prev + message.content[index])
-  //           index += 1
-
-  //           const randomSpeed =
-  //             Math.floor(Math.random() * (speed + 50 - (speed + 10))) +
-  //             (speed - 10)
-  //           const isPausedCharacter = Math.random() < 0.1
-
-  //           if (isPausedCharacter) {
-  //             isPaused = true
-  //             timeout = setTimeout(() => {
-  //               isPaused = false
-  //               typeCharacter()
-  //             }, randomSpeed * 5)
-  //           } else {
-  //             timeout = setTimeout(typeCharacter, randomSpeed)
-  //           }
-  //         }
-  //       }
-
-  //       typeCharacter()
-
-  //       return () => {
-  //         isPaused = true
-  //         clearTimeout(timeout)
-  //       }
-  //     }
-  //   } else {
-  //     setDisplayedText(message.content)
-  //   }
-  // }, [message.content, speed])
-
   return (
     <div
       className={cn(
-        "group w-full mb-10 items-start h-full relative flex flex-col overflow-x-hidden"
+        "group w-full mb-10 items-start h-full relative flex flex-col overflow-x-hidden transition-all duration-300"
       )}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       {...props}>
       <div
         className={clsx(
@@ -170,8 +127,13 @@ export function ChatMessage({
       </div>
 
       {/* Audio player component should appear on hover underneath cursor (like a context menu) */}
-      {/* <div className="">
-        <AudioPlayer />
+
+      {/* <div
+        className={clsx(
+          "transition-transform duration-300",
+          isHovered ? "h-10" : "h-0 hidden"
+        )}>
+        Hello
       </div> */}
     </div>
   )

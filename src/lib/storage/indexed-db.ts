@@ -35,6 +35,8 @@ export function openDatabase(): Promise<IDBDatabase> {
   })
 }
 
+// Maybe I need another store for messages...
+
 export async function createNewChatThread(
   thread: ChatThread
 ): Promise<ResultSet> {

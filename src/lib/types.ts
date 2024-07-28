@@ -58,3 +58,15 @@ export type ResultObject = {
   error?: Error
   message?: string
 }
+
+export interface Audio {
+  id: number
+  title: string
+  published: Date
+  description: string
+  content: string
+  audio: {
+    src: string
+    type: string
+  }
+}

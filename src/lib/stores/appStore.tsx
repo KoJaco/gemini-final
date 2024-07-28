@@ -6,8 +6,10 @@ interface AppState {
   setAutoImprovementsActive: (value: boolean) => void
   typewriter: boolean
   setTypewriter: (value: boolean) => void
-  apiKey: string | null
-  setApiKey: (value: string | null) => void
+  geminiApiKey: string | null
+  setGeminiApiKey: (value: string | null) => void
+  whisperApiKey: string | null
+  setWhisperAPiKey: (value: string | null) => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -19,8 +21,10 @@ export const useAppStore = create<AppState>()(
           set(() => ({ autoImprovementsActive: value })),
         typewriter: false,
         setTypewriter: (value) => set(() => ({ typewriter: value })),
-        apiKey: null,
-        setApiKey: (value) => set(() => ({ apiKey: value }))
+        geminiApiKey: null,
+        setGeminiApiKey: (value) => set(() => ({ geminiApiKey: value })),
+        whisperApiKey: null,
+        setWhisperAPiKey: (value) => set(() => ({ whisperApiKey: value }))
       }),
       { name: "Gemini Application Store" }
     )

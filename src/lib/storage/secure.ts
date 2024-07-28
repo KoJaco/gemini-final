@@ -9,12 +9,12 @@ if (!password || password.length === 0) {
   console.error("Secure Storage Password is not defined in environment file.")
 }
 
-export const setApiKey = async (
-  apiKey: string
+export const setGeminiApiKey = async (
+  geminiApiKey: string
 ): Promise<{ success: boolean; error?: string }> => {
   try {
     await storage.setPassword(password)
-    await storage.set("googleGeminiApiKey", apiKey)
+    await storage.set("googleGeminiApiKey", geminiApiKey)
     return { success: true }
   } catch (error) {
     return { success: false, error: (error as Error).message }

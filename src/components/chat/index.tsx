@@ -27,9 +27,9 @@ const Chat = ({
   setThread: (thread: ChatThread) => void
   setResponseLoading: (value: boolean) => void
 }) => {
-  const { setTypewriter, apiKey } = useAppStore()
+  const { setTypewriter, geminiApiKey } = useAppStore()
 
-  const genAI = new GoogleGenerativeAI(apiKey)
+  const genAI = new GoogleGenerativeAI(geminiApiKey)
 
   const [loading, setLoading] = useState(false)
   const [input, setInput] = useState<string>("")
@@ -42,7 +42,7 @@ const Chat = ({
     const handleMessage = (message) => {
       if (message.action === "hoverElement") {
         hoveredElementRef.current = message.element
-        console.log("Hovered Element: ", hoveredElementRef.current)
+        // console.log("Hovered Element: ", hoveredElementRef.current)
       } else if (message.action === "contextOption") {
         hoveredElementRef.current = message.element
         setContextOption(message.option)

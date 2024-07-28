@@ -36,20 +36,21 @@ const Sidepanel = () => {
   const [currentView, setCurrentView] = useState<AvailableViews>("main")
 
   const [loading, setLoading] = useState(true)
-  const [apiKeyLoading, setApiKeyLoading] = useState(false)
+  const [apiKeysLoading, setApiKeysLoading] = useState(false)
   const [error, setError] = useState({ display: false, message: "" })
 
   const { messagesRef, scrollRef, visibilityRef, isAtBottom, scrollToBottom } =
     useScrollAnchor()
 
-  const { apiKey, setApiKey } = useAppStore()
+  const { geminiApiKey, setGeminiApiKey, whisperApiKey, setWhisperAPiKey } =
+    useAppStore()
 
   useEffect(() => {
     const fetchApiKey = async () => {
       const response = await getApiKey()
 
       if (response.success && response.data) {
-        setApiKey(response.data)
+        setGeminiApiKey(response.data)
       } else {
         console.log(response.error)
       }
@@ -99,7 +100,7 @@ const Sidepanel = () => {
     fetchOrCreateLatestThread()
   }, [])
 
-  console.log(currentChatThread)
+  // console.log(currentChatThread)
 
   // Messaging / Chrome
   //   const resp = await sendToBackground({
@@ -111,8 +112,12 @@ const Sidepanel = () => {
 
   async function handleRemoveApiKey() {
     const res = await removeApiKey()
-
-    console.log(res.success)
+    if (res.success) {
+      setGeminiApiKey(null)
+      console.log("removed api key")
+      console.log("API KEY", geminiApiKey)
+      console.log(res.message || "No message")
+    }
   }
 
   function renderCurrentView() {
@@ -192,8 +197,8 @@ const Sidepanel = () => {
 
   return (
     <Providers>
-      <div className="flex flex-col w-full h-[100vh] max-h-[100vh] pt-4 overflow-hidden bg-gradient-to-b from-background to-background/50">
-        {apiKey ? (
+      <div className="flex flex-col w-full h-[100vh] max-h-[100vh] pt-4 overflow-x-hidden bg-gradient-to-b from-background to-background/50">
+        {geminiApiKey ? (
           <div className="flex flex-col h-full w-full">
             <header className="px-4 mb-4 flex-col flex">
               <h1 className="text-lg text-left">Gemini Helper</h1>
@@ -227,7 +232,7 @@ const Sidepanel = () => {
             /> */}
 
             {/* Sidepanel<button onClick={openWelcomePage}>Open Welcome Page</button> */}
-            {/* <Button onClick={handleRemoveApiKey}>Remove API Key</Button> */}
+            <Button onClick={() => handleRemoveApiKey()}>Remove API Key</Button>
             <SidepanelFooter
               currentView={"main"}
               setCurrentView={setCurrentView}
@@ -235,8 +240,9 @@ const Sidepanel = () => {
             />
           </div>
         ) : (
-          <div className="w-full mx-auto justify-center items-center flex flex-col h-full px-4 pb-4">
-            {apiKeyLoading ? (
+          <div className="p-4">
+            {/* this should be a loading skeleton for the app as a whole. */}
+            {apiKeysLoading ? (
               <Card className="w-full h-auto shadow-lg flex flex-col gap-y-8 p-6">
                 <Skeleton className="w-full h-16 rounded-md" />
                 <div className="flex flex-col space-y-2 w-full">
@@ -247,13 +253,18 @@ const Sidepanel = () => {
                 <Skeleton className="w-32 h-8 rounded-md" />
               </Card>
             ) : (
-              <Card className="shadow-lg w-full">
-                <CardHeader>
-                  <CardTitle className="text-2xl font-bold mb-4">
-                    Setup Google Gemini API Key
+              <Card className="shadow-lg w-full h-auto">
+                <CardHeader className="mb-4">
+                  <CardTitle className="capitalize text-2xl font-bold mb-4">
+                    Setup you API keys
                   </CardTitle>
 
                   <CardDescription>
+                    <span className="mb-4">
+                      Lorem ipsum dolor, sit amet consectetur adipisicing elit.
+                      Similique modi odit reprehenderit facilis assumenda
+                      architecto
+                    </span>
                     {error.display && (
                       <span className="text-red-500 mb-4 whitespace-normal w-full">
                         {error.message}
@@ -264,9 +275,9 @@ const Sidepanel = () => {
 
                 <CardContent>
                   <ApiEntryForm
-                    apiKey={apiKey}
-                    setCurrentKey={setApiKey}
-                    setApiKeyLoading={setApiKeyLoading}
+                    geminiApiKey={geminiApiKey}
+                    setGeminiKey={setGeminiApiKey}
+                    setApiKeysLoading={setApiKeysLoading}
                     setError={setError}
                   />
                 </CardContent>
