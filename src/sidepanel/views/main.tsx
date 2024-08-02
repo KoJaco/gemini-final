@@ -16,7 +16,7 @@ type MainViewProps = {
     visibilityRef: React.RefObject<HTMLDivElement>;
 };
 
-export default function MainView({
+export function MainView({
     currentChatThread,
     setCurrentChatThread,
     isAtBottom,

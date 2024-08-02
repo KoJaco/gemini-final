@@ -10,6 +10,7 @@ import {
     CardTitle
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import WebTTS from "@/components/web-tts";
 import { useScrollAnchor } from "@/lib/hooks/use-scroll-anchor";
 import { Providers } from "@/lib/providers";
 import { createNewChatThread, getLatestThread } from "@/lib/storage/indexed-db";
@@ -24,8 +25,7 @@ import { sendToBackground } from "@plasmohq/messaging";
 import { useStorage } from "@plasmohq/storage/hook";
 
 import SidepanelFooter from "./footer";
-import MainView from "./views/main";
-import ThreadsView from "./views/threads";
+import { MainView, PreferencesView, ThreadsView } from "./views";
 
 const Sidepanel = () => {
     // States
@@ -114,17 +114,17 @@ const Sidepanel = () => {
     //     }
     //   })
 
-    async function handleRemoveApiKey(
-        name: "googleGeminiApiKey" | "whisperApiKey"
-    ) {
-        const res = await removeApiKey(name);
-        if (res.success) {
-            setGeminiApiKey(null);
-            console.log("removed api key");
-            console.log("API KEY", geminiApiKey);
-            console.log(res.message || "No message");
-        }
-    }
+    // async function handleRemoveApiKey(
+    //     name: "googleGeminiApiKey" | "whisperApiKey"
+    // ) {
+    //     const res = await removeApiKey(name);
+    //     if (res.success) {
+    //         setGeminiApiKey(null);
+    //         console.log("removed api key");
+    //         console.log("API KEY", geminiApiKey);
+    //         console.log(res.message || "No message");
+    //     }
+    // }
 
     function renderCurrentView() {
         switch (currentView) {
@@ -151,17 +151,7 @@ const Sidepanel = () => {
                 );
 
             case "preferences":
-                return (
-                    <MainView
-                        currentChatThread={currentChatThread}
-                        setCurrentChatThread={setCurrentChatThread}
-                        isAtBottom={isAtBottom}
-                        scrollToBottom={scrollToBottom}
-                        messagesRef={messagesRef}
-                        scrollRef={scrollRef}
-                        visibilityRef={visibilityRef}
-                    />
-                );
+                return <PreferencesView setOpenView={setCurrentView} />;
             case "read-mode":
                 return (
                     <MainView
@@ -227,6 +217,12 @@ const Sidepanel = () => {
 
                         {/* main content */}
                         {renderCurrentView()}
+
+                        {/* <WebTTS
+                            text={
+                                "A utility-first CSS framework packed with classes like flex, pt-4, text-center and rotate-90 that can be composed to build any design, directly in your markup."
+                            }
+                        /> */}
                         {/* <MainView
               currentChatThread={currentChatThread}
               setCurrentChatThread={setCurrentChatThread}

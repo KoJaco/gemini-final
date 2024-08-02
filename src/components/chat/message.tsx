@@ -179,7 +179,7 @@ export function ChatMessage({
 
                 {/* Audio player component should appear on hover underneath cursor (like a context menu) */}
 
-                <div
+                {/* <div
                     className={clsx(
                         "transition-opacity duration-300 flex w-full mt-2",
                         isHovered
@@ -188,12 +188,12 @@ export function ChatMessage({
                     )}>
                     {currentAudio ? (
                         <>
-                            {/* <Button
+                            <Button
                                 type="button"
                                 onClick={() => currentAudio.toggle()}>
                                 {currentAudio.playing ? playing : paused}
-                            </Button> */}
-                            {/* <AudioPlayer audioBlob={audioBlob} /> */}
+                            </Button>
+                            <AudioPlayer audioBlob={audioBlob} />
                         </>
                     ) : (
                         <Button
@@ -204,11 +204,10 @@ export function ChatMessage({
                                 message.role === "user" ? "ml-auto" : "ml-0"
                             )}
                             onClick={() => handleTextToSpeech(displayedText)}>
-                            {/* Text-to-Speech */}
                             <AudioLines />
                         </Button>
                     )}
-                </div>
+                </div> */}
             </div>
         </AudioProvider>
     );
