@@ -4,3 +4,5 @@ To initiate one-time messages between extension pages, tab pages or content scri
 
 1. Gemini API Request
 2. Whisper API Request
+
+## Preferences

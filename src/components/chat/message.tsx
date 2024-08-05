@@ -4,6 +4,12 @@
 // import { useAppStore } from "@/lib/stores/appStore"
 import { AudioPlayer } from "@/components/audio-player/audio-player";
 import ErrorBoundary from "@/components/errors/ErrorBoundary";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardTitle
+} from "@/components/ui/card";
 import { CodeBlock } from "@/components/ui/codeblock";
 import {
     AudioProvider,
@@ -124,7 +130,21 @@ export function ChatMessage({
                             : "place-self-start w-full"
                     )}>
                     {/* TODO: add a skeleton fallback. */}
-                    <ErrorBoundary fallback={<p>Something went wrong</p>}>
+                    <ErrorBoundary
+                        fallback={
+                            <Card className="border-destructive-foreground/50 border bg-destructive/50 pt-4 rounded-lg">
+                                <CardContent className="space-y-4">
+                                    <CardTitle>
+                                        Uh oh! Something went wrong.
+                                    </CardTitle>
+                                    <CardDescription>
+                                        There is a known bug in parsing
+                                        markdown-formatted code. This will be
+                                        fixed asap.
+                                    </CardDescription>
+                                </CardContent>
+                            </Card>
+                        }>
                         <MemoizedReactMarkdown
                             className="h-full w-full prose dark:prose-invert break-words prose-p:leading-relaxed prose-pre:p-0 text-wrap whitespace-normal markdown prose-p:last:mb-0 prose-p:mb-2"
                             remarkPlugins={[remarkGfm, remarkMath]}
