@@ -129,12 +129,11 @@ export function ChatMessage({
                             ? "border rounded-lg py-2.5 px-2 border-muted/50 place-self-end w-2/3 shadow backdrop-blur-lg bg-muted/50 "
                             : "place-self-start w-full"
                     )}>
-                    {/* TODO: add a skeleton fallback. */}
                     <ErrorBoundary
                         fallback={
-                            <Card className="border-destructive-foreground/50 border bg-destructive/50 pt-4 rounded-lg">
+                            <Card className="border-destructive-foreground/20 border bg-destructive/50 rounded-lg prose dark:prose-invert prose-p:leading-relaxed">
                                 <CardContent className="space-y-4">
-                                    <CardTitle>
+                                    <CardTitle className="text-sm">
                                         Uh oh! Something went wrong.
                                     </CardTitle>
                                     <CardDescription>
