@@ -13,6 +13,9 @@ export const PreferencesView = ({ setOpenView }: Props) => {
     return (
         <div className="h-3/4 w-full flex flex-1 flex-col gap-y-4 overflow-y-auto p-4">
             <h2 className="mt-4 mb-2 text-lg font-bold">Preferences</h2>
+
+            {/* testing for contextMenu here */}
+
             <ScrollArea className="h-3/4 w-full flex flex-1 flex-col gap-y-4 overflow-y-auto">
                 {/* Form Here */}
                 <PreferencesForm />

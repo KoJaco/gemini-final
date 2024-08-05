@@ -1,4 +1,5 @@
-import { Button } from "@/components/ui/button";
+// import { TOGGLE_HOVER_MODE } from "@/background/ports/toggle-hover-mode";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
     Tooltip,
     TooltipContent,
@@ -22,7 +23,37 @@ const SidepanelFooter = ({
     setCurrentView,
     setCurrentChatThread
 }: Props) => {
-    const [hoverMode, setHoverMode] = useState(false);
+    const [hoverMode, setHoverMode] = useState<boolean>(false);
+
+    async function handleToggleHoverMode() {
+        console.log("sending toggle hover mode command");
+
+        // TODO: Extrapolate response return types out into appropriate types (success only, success with message, success with data)
+        const response: { success: boolean } = await chrome.runtime.sendMessage(
+            {
+                action: "TOGGLE_HOVER_MODE",
+                payload: !hoverMode
+            }
+        );
+
+        console.log(response);
+
+        if (response?.success) {
+            setHoverMode(!hoverMode);
+            console.log("Successfully toggled hover mode");
+        } else {
+            console.log("Error!");
+        }
+
+        // console.log("sending toggle hover mode command");
+
+        // const response = await sendToBackground({
+        //     name: "ping",
+        //     body: "Hello ping"
+        // });
+
+        // console.log(response);
+    }
 
     const activateHoverMode = () => {
         console.log("activate hit");
@@ -35,12 +66,7 @@ const SidepanelFooter = ({
     };
 
     async function determineButtonFunction(
-        identifier:
-            | "new-chat"
-            | "all-threads"
-            | "hover-mode"
-            | "reading-mode"
-            | "preferences"
+        identifier: "new-chat" | "all-threads" | "hover-mode" | "preferences"
     ) {
         switch (identifier) {
             case "new-chat":
@@ -50,13 +76,7 @@ const SidepanelFooter = ({
                 }
                 break;
             case "hover-mode":
-                if (!hoverMode) {
-                    activateHoverMode();
-                    setHoverMode(true);
-                } else {
-                    deactivateHoverMode();
-                    setHoverMode(false);
-                }
+                handleToggleHoverMode();
                 break;
             case "all-threads":
                 setCurrentView(identifier);
@@ -104,19 +124,23 @@ const SidepanelFooter = ({
             {footerButtons.map((button) => (
                 <Tooltip key={button.labelName}>
                     <TooltipTrigger>
-                        <Button
-                            name={button.labelName}
+                        <div
+                            // name={button.labelName}
                             aria-label={button.labelName}
                             role="button"
-                            type="button"
-                            variant="ghost"
-                            size="icon"
+                            // type="button"
+                            // variant="ghost"
+                            // size="icon"
                             className={clsx(
+                                buttonVariants({
+                                    variant: "ghost",
+                                    size: "icon"
+                                }),
                                 "text-muted-foreground hover:scale-105 transition-all duration-300",
                                 button.labelName === "hover-mode"
                                     ? `${
                                           hoverMode
-                                              ? "bg-foreground text-background"
+                                              ? "bg-foreground text-black"
                                               : "bg-transparent"
                                       }`
                                     : ""
@@ -125,7 +149,7 @@ const SidepanelFooter = ({
                                 determineButtonFunction(button.labelName)
                             }>
                             {button.icon}
-                        </Button>
+                        </div>
                     </TooltipTrigger>
                     <TooltipContent className="max-w-[200px] bg-background text-muted-foreground shadow text-md border border-muted-foreground/20">
                         {button.tooltip}

@@ -3,6 +3,7 @@
 // import { useAppStore } from "@/lib/stores/appStore"
 // import { useAppStore } from "@/lib/stores/appStore"
 import { AudioPlayer } from "@/components/audio-player/audio-player";
+import ErrorBoundary from "@/components/errors/ErrorBoundary";
 import { CodeBlock } from "@/components/ui/codeblock";
 import {
     AudioProvider,
@@ -18,6 +19,7 @@ import { AudioLines } from "lucide-react";
 import React, { memo, useEffect, useState, type FC } from "react";
 import ReactMarkdown, { type Options } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 
 import { Button } from "../ui/button";
 import { IconGemini, IconUser } from "../ui/icons";
@@ -27,6 +29,7 @@ export interface ChatMessageProps {
     speed?: number;
 }
 
+// TODO: Implement error message display (destructive card).
 export function ChatMessage({
     message,
     speed = 10,
@@ -89,6 +92,8 @@ export function ChatMessage({
         }
     }
 
+    // console.log("displayedText", displayedText);
+
     return (
         <AudioProvider>
             <div
@@ -118,63 +123,70 @@ export function ChatMessage({
                             ? "border rounded-lg py-2.5 px-2 border-muted/50 place-self-end w-2/3 shadow backdrop-blur-lg bg-muted/50 "
                             : "place-self-start w-full"
                     )}>
-                    <MemoizedReactMarkdown
-                        className="h-full w-full prose dark:prose-invert break-words prose-p:leading-relaxed prose-pre:p-0 text-wrap whitespace-normal"
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                            p({ children }) {
-                                return (
-                                    <p className="mb-2 last:mb-0">{children}</p>
-                                );
-                            },
-                            code({
-                                node,
-                                inline,
-                                className,
-                                children,
-                                ...props
-                            }) {
-                                if (children && children.length) {
-                                    if (children[0] == "▍") {
+                    {/* TODO: add a skeleton fallback. */}
+                    <ErrorBoundary fallback={<p>Something went wrong</p>}>
+                        <MemoizedReactMarkdown
+                            className="h-full w-full prose dark:prose-invert break-words prose-p:leading-relaxed prose-pre:p-0 text-wrap whitespace-normal markdown prose-p:last:mb-0 prose-p:mb-2"
+                            remarkPlugins={[remarkGfm, remarkMath]}
+                            components={{
+                                p({ children }) {
+                                    return (
+                                        <p className="mb-2 last:mb-0">
+                                            {children}
+                                        </p>
+                                    );
+                                },
+                                code({
+                                    node,
+                                    inline,
+                                    className,
+                                    children,
+                                    ...props
+                                }) {
+                                    if (children.length) {
+                                        if (children[0] == "▍") {
+                                            return (
+                                                <span className="mt-1 cursor-default animate-pulse">
+                                                    ▍
+                                                </span>
+                                            );
+                                        }
+
+                                        children[0] = (
+                                            children[0] as string
+                                        ).replace("`▍`", "▍");
+                                    }
+
+                                    const match = /language-(\w+)/.exec(
+                                        className || ""
+                                    );
+
+                                    if (inline) {
                                         return (
-                                            <span className="mt-1 cursor-default animate-pulse">
-                                                ▍
-                                            </span>
+                                            <code
+                                                className={className}
+                                                {...props}>
+                                                {children}
+                                            </code>
                                         );
                                     }
 
-                                    children[0] = (
-                                        children[0] as string
-                                    ).replace("`▍`", "▍");
-                                }
-
-                                const match = /language-(\w+)/.exec(
-                                    className || ""
-                                );
-
-                                if (inline) {
                                     return (
-                                        <code className={className} {...props}>
-                                            {children}
-                                        </code>
+                                        <CodeBlock
+                                            key={Math.random()}
+                                            language={(match && match[1]) || ""}
+                                            value={String(children).replace(
+                                                /\n$/,
+                                                ""
+                                            )}
+                                            {...props}
+                                        />
                                     );
                                 }
-
-                                return (
-                                    <CodeBlock
-                                        key={Math.random()}
-                                        language={(match && match[1]) || ""}
-                                        value={String(children).replace(
-                                            /\n$/,
-                                            ""
-                                        )}
-                                        {...props}
-                                    />
-                                );
-                            }
-                        }}>
-                        {displayedText}
-                    </MemoizedReactMarkdown>
+                            }}>
+                            {displayedText}
+                        </MemoizedReactMarkdown>
+                    </ErrorBoundary>
                 </div>
 
                 {/* Audio player component should appear on hover underneath cursor (like a context menu) */}
@@ -183,7 +195,7 @@ export function ChatMessage({
                     className={clsx(
                         "transition-opacity duration-300 flex w-full mt-2",
                         isHovered
-                            ? "opacity-100 pointer-events-auto"
+                        ? "opacity-100 pointer-events-auto"
                             : "opacity-0 pointer-events-none"
                     )}>
                     {currentAudio ? (

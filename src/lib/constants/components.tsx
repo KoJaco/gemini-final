@@ -9,22 +9,28 @@ import {
 
 export const helpfulQuestions: HelpfulQuestion[] = [
     {
-        labelName: "read-aloud",
-        prompt: "Can you read out the website's text for me?"
-    },
-    {
         labelName: "summarize-page",
         prompt: "Please summarize the current page for me."
     },
     {
-        labelName: "better-understand",
-        prompt: "Can you help me understand what's on this page?"
+        labelName: "main-purpose",
+        prompt: "What is the main purpose of this webpage?"
     },
     {
-        labelName: "page-makeup",
-        prompt: "Can you describe how this page is made up?"
+        labelName: "explain-complex-terms",
+        prompt: "Please explain any complex terms or concepts found on this webpage"
     }
 ];
+
+// TODO: More helpful questions to be implemented...
+/**
+ * 1. list important sections
+ * 2. explain complex terms
+ * 3. accessibility overview
+ * 4. reading level, how can it be simplified?
+ * 5. "What actionable steps or tasks can I take based on this webpage?"
+ *
+ */
 
 export const footerButtons: FooterButtonType[] = [
     {
@@ -46,13 +52,7 @@ export const footerButtons: FooterButtonType[] = [
             "Activate hover mode. Move your mouse over elements on the page to display a context menu. If you have voice commands enabled in your preferences you can command Gemini to interact an element.",
         icon: <MousePointer />
     },
-    {
-        title: "Reading Mode",
-        labelName: "reading-mode",
-        tooltip:
-            "Allow Gemini to condense the website into only text-based content and change text to your preferences.",
-        icon: <List />
-    },
+
     {
         title: "Change Preferences",
         labelName: "preferences",

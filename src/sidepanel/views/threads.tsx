@@ -6,10 +6,14 @@ import {
     CardTitle
 } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { getAllThreads, setLatestChatThread } from "@/lib/storage/indexed-db";
+import {
+    getAllThreads,
+    removeThread,
+    setLatestChatThread
+} from "@/lib/storage/indexed-db";
 import type { AvailableViews, ChatThread } from "@/lib/types";
 import clsx from "clsx";
-import { CornerUpLeft } from "lucide-react";
+import { CornerUpLeft, Trash } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
 type Props = {
@@ -50,6 +54,31 @@ export const ThreadsView = ({
         };
     }, []);
 
+    const stripSummary = (summary: string) => {
+        if (summary) {
+            const newSummary = summary.split("**");
+            return newSummary[2];
+        } else {
+            return null;
+        }
+    };
+
+    // TODO: Bug --- must refresh sidepanel page as local state becomes stale (db is fine).
+
+    async function handleRemoveThread(threadId: string) {
+        const res = await removeThread(threadId);
+        console.log("hit");
+
+        if (res.success) {
+            setThreads((prev) =>
+                prev.filter((thread) => thread.threadId !== threadId)
+            );
+            console.log(res.message);
+        } else {
+            console.error(res.message);
+        }
+    }
+
     async function handleSetCurrentChatThread(thread: ChatThread) {
         const res = await setLatestChatThread(thread.threadId);
 
@@ -73,20 +102,33 @@ export const ThreadsView = ({
                         return (
                             <li
                                 key={thrd.threadId}
-                                className="group hover:cursor-pointer"
-                                onMouseDown={() => {
-                                    handleSetCurrentChatThread(thrd);
-                                }}>
+                                className="group hover:cursor-pointer relative">
+                                <Button
+                                    type="button"
+                                    className="absolute z-10 right-2 hover:text-red-500 top-2"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() =>
+                                        handleRemoveThread(thrd.threadId)
+                                    }>
+                                    <Trash className="w-4 h-4" />
+                                </Button>
                                 <Card
                                     className={clsx(
-                                        "p-2 backdrop-blur-lg group-hover:bg-muted/20",
+                                        "p-2 backdrop-blur-lg group-hover:bg-muted/20 relative",
                                         currentThread.threadId === thrd.threadId
                                             ? "border bg-muted/20"
                                             : ""
-                                    )}>
+                                    )}
+                                    onMouseDown={() => {
+                                        handleSetCurrentChatThread(thrd);
+                                    }}>
                                     <CardContent className="p-2">
-                                        <CardTitle className="flex w-full max-h-18 truncate whitespace-normal text-lg">
-                                            {thrd.messages.length > 1 ? (
+                                        <CardTitle className="flex w-full max-h-18 truncate whitespace-normal text-sm leading-2">
+                                            {thrd.threadId}
+                                        </CardTitle>
+                                        <CardDescription className="mt-2 mb-4 h-20 text-lg overflow-hidden">
+                                            {/* {thrd.messages.length > 1 ? (
                                                 <span>
                                                     {thrd.messages[1].content}
                                                 </span>
@@ -94,8 +136,13 @@ export const ThreadsView = ({
                                                 <span>
                                                     {thrd.messages[0].content}
                                                 </span>
-                                            )}
-                                        </CardTitle>
+                                            )} */}
+                                            <span className="text-clip whitespace-normal">
+                                                {stripSummary(
+                                                    thrd.summary?.content
+                                                ) || thrd.messages[0].content}
+                                            </span>
+                                        </CardDescription>
                                         <CardDescription className="text-muted-foreground mt-2">
                                             <span>{`Messages: (${thrd.messages.length}) `}</span>
                                             <br />

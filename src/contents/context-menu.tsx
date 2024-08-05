@@ -1,11 +1,20 @@
-import ShadowWrapper from "@/components/shadow-wrapper";
+// import { Button } from "@/components/ui/button";
+// import { sluggify } from "@/lib/utils";
+// @ts-expect-error
 import cssText from "data-text:@/style.css";
+import {
+    AudioLines,
+    CornerUpLeft,
+    Languages,
+    List,
+    ListChecks,
+    ListFilter,
+    ListRestart,
+    ScanSearch,
+    ScrollText
+} from "lucide-react";
 import type { PlasmoCSConfig } from "plasmo";
-import React, { useEffect, useRef, useState } from "react";
-
-import { sendToBackground } from "@plasmohq/messaging";
-
-// import { CountButton } from "~features/count-button"
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 export const config: PlasmoCSConfig = {
     matches: ["<all_urls>"]
@@ -20,21 +29,117 @@ export const getStyle = () => {
 
 console.log("content script loaded");
 
+// I want to return text content with their associative tags. I also only want to return meaningful tags to be analysed... very difficult to also consider span and div content as this can result in many single character strings returned... :/
+function getPageTextContent() {
+    const meaningfulTags = [
+        "P",
+        "H1",
+        "H2",
+        "H3",
+        "H4",
+        "H5",
+        "H6",
+        "UL",
+        "OL",
+        "LI",
+        "DIV"
+    ];
+
+    const elementsWithText = [];
+
+    function hasDirectTextNode(element) {
+        for (const node of element.childNodes) {
+            if (
+                node.nodeType === Node.TEXT_NODE &&
+                node.textContent.trim().length > 3 // arbitrary, how to go about this???
+            ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function traverse(element) {
+        if (
+            meaningfulTags.includes(element.tagName) &&
+            hasDirectTextNode(element)
+        ) {
+            elementsWithText.push(element.outerHTML);
+        }
+
+        for (const child of element.children) {
+            traverse(child);
+        }
+    }
+
+    traverse(document.body);
+
+    return elementsWithText.join("<br/>");
+}
+
 const ContextMenu = () => {
     const [hoverMode, setHoverMode] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-    const [menuOptions, setMenuOptions] = useState<{ [key: string]: string[] }>(
-        {}
-    );
+    const [menuOptions, setMenuOptions] = useState<{
+        [key: string]: { title: string; icon: React.ReactNode }[];
+    }>({});
 
-    const [menuHovered, setMenuHovered] = useState(false);
+    const [isOverMenu, setIsOverMenu] = useState(false);
 
     const highlightedElementRef = useRef<HTMLElement | null>(null);
     const menuRef = useRef<HTMLDivElement | null>(null);
 
+    const handleToggleHoverMode = useCallback((value) => {
+        setHoverMode(value);
+    }, []);
+
+    const handleSetIsOverMenu = useCallback((value: boolean) => {
+        setIsOverMenu(value);
+    }, []);
+
+    // Listeners
     useEffect(() => {
-        if (!hoverMode) return;
+        const messageListener = (message, sender, sendResponse) => {
+            // content menu specific
+            if (message.action === "TOGGLE_HOVER_MODE") {
+                console.log(message.payload);
+                handleToggleHoverMode(message.payload);
+                // setHoverMode(message.payload);
+
+                // TODO: handle edge case - when hover mode is to be turned off, reset styling.
+
+                sendResponse({ success: true });
+
+                // Full page data
+            } else if (message.action === "GET_PAGE_TEXT_CONTENT") {
+                const data = getPageTextContent();
+                console.log(data);
+                sendResponse({ success: true, content: data });
+                // send to BGSW and parse into a prompt for Gemini
+            } else {
+                sendResponse({
+                    success: false,
+                    message: `No such action exists. Action: ${message.action}`
+                });
+            }
+
+            return true; // async send response
+        };
+
+        // add onMessage listeners
+
+        chrome.runtime.onMessage.addListener(messageListener);
+
+        // remove on dismount
+        return () => {
+            chrome.runtime.onMessage.removeListener(messageListener);
+        };
+    }, []);
+
+    // mouse move && hover effects
+    useEffect(() => {
+        if (!hoverMode || isOverMenu) return;
 
         let hoverTimeout: ReturnType<typeof setTimeout>;
         let lastPosition = { x: 0, y: 0 };
@@ -60,24 +165,53 @@ const ContextMenu = () => {
 
                 if (underCursor.tagName === "IMG") {
                     setMenuOptions({
-                        "Image Options": [
-                            "Describe this",
-                            "Describe and read aloud",
-                            "Describe and translate"
+                        Image: [
+                            {
+                                title: "Describe",
+                                icon: <ScanSearch className="w-4 h-4" />
+                            },
+                            {
+                                title: "Describe and Read Aloud",
+                                icon: <ScrollText className="w-4 h-4" />
+                            },
+                            {
+                                title: "Describe and Translate",
+                                icon: <Languages className="w-4 h-4" />
+                            }
                         ]
                     });
                 } else {
                     setMenuOptions({
-                        "Text Options": [
-                            "Summarize",
-                            "Simplify this for me",
-                            "Explain this to me"
+                        Text: [
+                            {
+                                title: "Summarize",
+                                icon: <List className="w-4 h-4" />
+                            },
+                            {
+                                title: "Simplify",
+                                icon: <ListFilter className="w-4 h-4" />
+                            },
+                            {
+                                title: "Explain",
+                                icon: <ListChecks className="w-4 h-4" />
+                            }
                         ],
-                        "Translation Options": [
-                            "Translate",
-                            "Summarize and Translate"
+                        Translation: [
+                            {
+                                title: "Translate",
+                                icon: <Languages className="w-4 h-4" />
+                            },
+                            {
+                                title: "Summarize and Translate",
+                                icon: <ListRestart className="w-4 h-4" />
+                            }
                         ],
-                        "Reading Options": ["Read aloud"]
+                        Reading: [
+                            {
+                                title: "Read aloud",
+                                icon: <AudioLines className="w-4 h-4" />
+                            }
+                        ]
                     });
                 }
             }
@@ -92,15 +226,19 @@ const ContextMenu = () => {
                     setMousePosition({ x: clientX, y: clientY });
 
                     setIsVisible(true);
-                    setMenuHovered(true);
+                    handleSetIsOverMenu(true);
+                    console.log(highlightedElementRef.current);
+                    // console.log({ isOverMenu: isOverMenu });
                 }, 1000);
             }
         };
 
         const handleMouseLeave = (event: MouseEvent) => {
+            // TODO: fix bug when mouse leave window and goes into sidebar.
             if (
-                !menuRef.current &&
-                !menuRef.current.contains(event.relatedTarget as Node)
+                !menuRef.current ||
+                (menuRef.current &&
+                    !menuRef.current.contains(event.relatedTarget as Node))
             ) {
                 setIsVisible(false);
                 clearTimeout(hoverTimeout);
@@ -118,9 +256,11 @@ const ContextMenu = () => {
             document.removeEventListener("mousemove", handleMouseMove);
             document.removeEventListener("mouseleave", handleMouseLeave);
         };
-    }, []);
+    }, [hoverMode, isOverMenu]);
 
+    // reposition menu
     useEffect(() => {
+        // TODO: fix this so it styles correctly
         if (isVisible && menuRef.current) {
             const { innerWidth, innerHeight } = window;
             const menuRect = menuRef.current.getBoundingClientRect();
@@ -129,7 +269,7 @@ const ContextMenu = () => {
             let newY = mousePosition.y;
 
             if (menuRect.right > innerWidth) {
-                newX = innerWidth - menuRect.width / 2;
+                newX = innerWidth - menuRect.width;
             }
             if (menuRect.bottom > innerHeight) {
                 newY = innerHeight - menuRect.height / 2;
@@ -145,59 +285,44 @@ const ContextMenu = () => {
         }
     }, [isVisible]);
 
-    // const response = await sendToBackground({
-    //   name: "ping",
-    //   body: {
-    //     id: "123"
-    //   },
-    //   extensionId: "jmdmdppbobnhekmijbdebjhoeflddbii" // details in web extension manager
-    // })
-
-    // console.log("Visible: ", isVisible);
-    // dark:bg-[#292524]/75 bg-[#f5f5f4]/75 text-muted-foreground
-
     if (!hoverMode) return null;
 
     return (
         <>
-            {/* <ShadowWrapper> */}
             {isVisible && (
                 <div
                     ref={menuRef}
-                    className="fixed z-[9999] rounded-[8px] border border-slate-700 shadow-lg transition-all duration-300 py-2 px-4 flex gap-x-4 text-sm bg-[#141414]"
+                    className="fixed z-[9999] rounded-[8px] border shadow-2xl transition-all duration-300 py-2 px-4 gap-y-[30px] text-sm bg-[#0c0a09] border-[#292524] w-[200px] h-auto flex flex-col"
                     style={{
                         top: mousePosition.y,
                         left: mousePosition.x,
                         transform: "translate(-50%, 0)"
-                        // opacity: isVisible ? "100%" : "0%"
                     }}
-                    // onMouseEnter={() => setMenuHovered(true)}
-                    // onMouseLeave={() => setMenuHovered(false)}
-                >
+                    onMouseLeave={() => handleSetIsOverMenu(false)}>
                     {Object.keys(menuOptions).map((header, index) => (
-                        <div key={index}>
+                        <div key={index} className="divide-y divide">
                             <h3 className="text-md font-bold mb-1">{header}</h3>
-                            <ul className="">
+                            <ul className="text-[#a8a29e] my-2">
                                 {menuOptions[header].map((option, subIndex) => (
-                                    <li
+                                    <button
                                         key={subIndex}
-                                        className="py-1 cursor-pointer text-opacity-50">
-                                        {option}
-                                    </li>
+                                        // variant="ghost"
+                                        name={`${header}-${option.title}`}
+                                        className=" gap-x-2 justify-start whitespace-normal h-auto w-full text-start p-2 hover:bg-[#292524] hover:text-[#fafaf9] inline-flex items-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 rounded-[6px]">
+                                        <span className="whitespace-normal">
+                                            {option.title}
+                                        </span>
+
+                                        <span className="ml-auto">
+                                            {option.icon}
+                                        </span>
+                                    </button>
                                 ))}
                             </ul>
                         </div>
                     ))}
-                    {/* {isVisible && (
-                <ShadowWrapper>
-                <div className="h-screen w-screen z-[1000] flex items-center justify-center bg-black">
-                I'm A content script
-                </div>
-                </ShadowWrapper>
-                )} */}
                 </div>
             )}
-            {/* </ShadowWrapper> */}
         </>
     );
 };

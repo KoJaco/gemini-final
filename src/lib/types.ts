@@ -1,11 +1,6 @@
 export type FooterButtonType = {
     title: string;
-    labelName:
-        | "new-chat"
-        | "all-threads"
-        | "hover-mode"
-        | "reading-mode"
-        | "preferences";
+    labelName: "new-chat" | "all-threads" | "hover-mode" | "preferences";
     tooltip: string;
     icon: JSX.Element;
 };
@@ -13,11 +8,7 @@ export type FooterButtonType = {
 export type ContextOption = "read" | "summarize" | "simplify" | "translate";
 
 export type HelpfulQuestion = {
-    labelName:
-        | "read-aloud"
-        | "summarize-page"
-        | "better-understand"
-        | "page-makeup";
+    labelName: "summarize-page" | "main-purpose" | "explain-complex-terms";
     prompt: string;
 };
 
@@ -37,8 +28,14 @@ export interface Message {
 export interface ChatThread {
     threadId: string;
     messages: Message[];
+    summary?: ThreadSummary;
     createdAt: string; // ISO string
     updatedAt: string; // ISO string
+}
+
+export interface ThreadSummary {
+    content: string;
+    lastUpdated: string; // ISO string
 }
 
 export interface StorageItems {

@@ -8,7 +8,9 @@
     "./**/*.ts",
     "./**/*.tsx",
     "./**/*.jsx",
-    "./**/*.js"
+    "./**/*.js",
+    "src",
+    "background"
   ],
   "compilerOptions": {
     "paths": {
