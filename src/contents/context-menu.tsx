@@ -410,7 +410,7 @@ const ContextMenu = () => {
                     }}
                     onMouseLeave={() => handleSetIsOverMenu(false)}>
                     <div className="font-bold text-md -mb-2 rounded-t-[8px] bg-[#252322] -mx-4 -mt-2 py-2 px-4">
-                        <h1>
+                        <h1 className="text-[#e4dcd7]">
                             Current Tag:{" "}
                             {highlightedElementRef.current?.tagName.toLocaleUpperCase()}
                         </h1>
@@ -419,7 +419,9 @@ const ContextMenu = () => {
                         <div
                             key={index}
                             className="divide-y divide space-y-2 divide-opacity-50">
-                            <h2 className="text-md font-bold mb-1">{header}</h2>
+                            <h2 className="text-md font-bold mb-1 text-[#e4dcd7]">
+                                {header}
+                            </h2>
                             <ul className="text-[#a8a29e] mt-2">
                                 {menuOptions[header].map((option, subIndex) => (
                                     <li key={subIndex}>

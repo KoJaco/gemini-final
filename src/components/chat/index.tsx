@@ -1,6 +1,7 @@
 "use client";
 
 import { helpfulQuestions } from "@/lib/constants/components";
+import RateLimiter from "@/lib/rate-limiter";
 import {
     getSummaryOnThread,
     saveSummaryToThread,
@@ -31,6 +32,8 @@ import {
     CarouselNext,
     CarouselPrevious
 } from "../ui/carousel";
+
+// TODO: bug in context menu after asking for page-based responses, thread doesn't update properly.
 
 // TODO: Big clean up of this file, repeated functionality that could be brought outside of if else clauses, repeated functions (condense), etc... I wrote this very quickly...
 
@@ -88,6 +91,9 @@ export const menuOptionToPrompt: Record<
         prompt: "Read aloud the content of the following element:"
     }
 };
+
+// TODO: Grab from preferences (apply differences to image comprehension calls and text gen calls -- one is much more expensive, can you guess which?)
+const rateLimiter = new RateLimiter(10, 60000); // limited to 10 calls per minute
 
 const Chat = ({
     thread,
@@ -190,7 +196,7 @@ const Chat = ({
                     prompt = `${menuOptionToPrompt[title].prompt}`;
                     break;
                 case "Describe and Translate":
-                    prompt = `You are a translator who can translate many languages into ${languagePreference}. ${menuOptionToPrompt[title]}`;
+                    prompt = `You are a translator who can translate many languages into ${languagePreference}. ${menuOptionToPrompt[title].prompt}`;
                     break;
                 default:
                     prompt = `${menuOptionToPrompt[title].prompt}`;
@@ -328,12 +334,15 @@ const Chat = ({
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         // let newMessage: Message | null = null;
 
+        // TODO: need a better way to throw 'limited'... add toast component.
         try {
-            const result = await model.generateContent([prompt, imagePart]);
-            const response = await result.response;
-            const text = response.text();
+            return await rateLimiter.call(async () => {
+                const result = await model.generateContent([prompt, imagePart]);
+                const response = await result.response;
+                const text = response.text();
 
-            return { success: true, data: text };
+                return { success: true, data: text };
+            });
         } catch (err) {
             console.error(err.message);
             return { success: false, data: err.message };

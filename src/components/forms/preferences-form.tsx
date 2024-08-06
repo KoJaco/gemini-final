@@ -85,7 +85,7 @@ export const PreferencesForm = () => {
                 <section id="api-keys">
                     <Card className="p-0">
                         <CardHeader>
-                            <CardTitle>Api Keys</CardTitle>
+                            <CardTitle className="text-lg">Api Keys</CardTitle>
                             <CardDescription>
                                 Add, change, or remove both your Gemini API Key
                                 and OpenAI Whisper API key below.
@@ -198,6 +198,42 @@ export const PreferencesForm = () => {
                                 )}
                             />
                         </CardContent>
+                    </Card>
+                </section>
+
+                <section id="gemini-behavior">
+                    {/*  */}
+                    <Card className="p-0">
+                        <CardHeader>
+                            <CardTitle className="text-lg">
+                                Gemini Behavior
+                            </CardTitle>
+                            <CardDescription>
+                                Adjust how you and Gemini interact, how Gemini
+                                interacts with each website, and modify Gemini's
+                                characteristics.
+                            </CardDescription>
+                        </CardHeader>
+
+                        <CardContent className="space-y-8"></CardContent>
+                    </Card>
+                </section>
+
+                <section id="application-settings">
+                    {/* suggested questions to further understand the text:  */}
+                    <Card className="p-0">
+                        <CardHeader>
+                            <CardTitle className="text-lg">
+                                Application Settings
+                            </CardTitle>
+                            <CardDescription>
+                                Change your translated language, automatic
+                                readout, suggested questions to further
+                                understand text.
+                            </CardDescription>
+                        </CardHeader>
+
+                        <CardContent className="space-y-8"></CardContent>
                     </Card>
                 </section>
             </form>

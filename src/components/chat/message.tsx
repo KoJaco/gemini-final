@@ -22,13 +22,17 @@ import type { Message } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import clsx from "clsx";
 import { AudioLines, MonitorCog } from "lucide-react";
-import React, { memo, useEffect, useState, type FC } from "react";
+import React, { memo, useEffect, useRef, useState, type FC } from "react";
+import { createPortal } from "react-dom";
 import ReactMarkdown, { type Options } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 
 import { Button } from "../ui/button";
 import { IconGemini, IconUser } from "../ui/icons";
+import WebTTS from "../web-tts";
+
+// TODO: functionality change... should I have the audio player hover on the side or be underneath/above the component?
 
 export interface ChatMessageProps {
     message: Message;
@@ -43,10 +47,16 @@ export function ChatMessage({
 }: ChatMessageProps) {
     const [displayedText, setDisplayedText] = useState("");
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [audioPlayerTopPosition, setAudioPlayerTopPosition] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
+    const [displayAudio, setDisplayAudio] = useState(false);
+    const [audioIsPlaying, setAudioIsPlaying] = useState(false);
 
     const [currentAudio, setCurrentAudio] = useState<PlayerAPI | null>(null);
     const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+
+    const messageContainerRef = useRef<HTMLDivElement | null>(null);
+    const ttsRef = useRef<HTMLDivElement | null>(null);
 
     // // console.log(displayedText);
     const { typewriter, setTypewriter } = useAppStore();
@@ -97,6 +107,40 @@ export function ChatMessage({
             console.log(res);
         }
     }
+
+    // TODO: make this a hook...
+
+    function debounce(func: Function, wait: number) {
+        let timeout: NodeJS.Timeout;
+
+        return function (...args) {
+            const context = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                func.apply(context, args);
+            }, wait);
+        };
+    }
+
+    const handleMouseMove = (event: React.MouseEvent) => {
+        const messageContainer = messageContainerRef.current;
+        const tts = ttsRef.current;
+
+        if (messageContainer && tts) {
+            if (tts.contains(event.target as Node)) {
+                return;
+            }
+
+            const top = event.clientY;
+            const position =
+                top - messageContainerRef.current.getBoundingClientRect().top;
+
+            setAudioPlayerTopPosition(position);
+        }
+    };
+
+    const debouncedMouseMove = debounce(handleMouseMove, 50);
+
     // TODO: Adjust system message styling..
 
     // console.log("displayedText", displayedText);
@@ -104,29 +148,55 @@ export function ChatMessage({
     return (
         <AudioProvider>
             <div
+                id={`message-container-${message.id}`}
+                ref={messageContainerRef}
                 className={cn(
-                    "group w-full mb-10 items-start h-full relative flex flex-col overflow-x-hidden transition-all duration-300"
+                    "group w-full mb-10 items-start h-auto relative flex flex-col overflow-x-hidden transition-all duration-300"
                 )}
-                onMouseEnter={() => setIsHovered(true)}
-                onMouseLeave={() => setIsHovered(false)}
+                onMouseEnter={() => setDisplayAudio(true)}
+                onMouseLeave={() => setDisplayAudio(false)}
+                onMouseMove={debouncedMouseMove}
+                // onMouseMove={handleMouseMove}
+                style={{ overflow: "visible" }}
                 {...props}>
-                <div
-                    className={clsx(
-                        "flex w-full mb-2",
-                        message.role === "user" || message.role === "system"
-                            ? "justify-end"
-                            : "justify-start"
-                    )}>
-                    {message.role === "user" && (
-                        <IconUser className="w-4 h-4" />
-                    )}
-                    {message.role === "assistant" ||
-                        (message.role === "ai-error" && (
+                <div className="flex justify-between w-full items-center">
+                    <div
+                        className={clsx(
+                            "flex w-full mb-2",
+                            message.role === "user" || message.role === "system"
+                                ? "justify-end"
+                                : "justify-start"
+                        )}>
+                        {message.role === "user" && (
+                            <IconUser className="w-4 h-4" />
+                        )}
+                        {message.role === "assistant" && (
                             <IconGemini className="w-4 h-4 text-red-500" />
-                        ))}
-                    {message.role === "system" && (
-                        <MonitorCog className="w-4 h-4 text-orange-500" />
-                    )}
+                        )}
+                        {message.role === "system" && (
+                            <MonitorCog className="w-4 h-4 text-orange-500" />
+                        )}
+                    </div>
+                    {/* <div
+                        className={clsx(
+                            "flex",
+                            message.role === "user" || message.role === "system"
+                                ? "flex-start"
+                                : "flex-end"
+                        )}>
+                        <Button
+                            size="icon"
+                            variant="secondary"
+                            className={clsx(
+                                "transition-transform duration-300 mb-2",
+                                isHovered ? "opacity-100" : "opacity-0"
+                            )}
+                            onClick={() => {
+                                setDisplayAudio(!displayAudio);
+                            }}>
+                            <AudioLines className="w-4 h-4" />
+                        </Button>
+                    </div> */}
                 </div>
                 <div
                     className={cn(
@@ -162,72 +232,103 @@ export function ChatMessage({
                                     </CardContent>
                                 </Card>
                             }>
-                            <MemoizedReactMarkdown
-                                className="h-full w-full prose dark:prose-invert break-words prose-p:leading-relaxed prose-pre:p-0 text-wrap whitespace-normal markdown prose-p:last:mb-0 prose-p:mb-2"
-                                remarkPlugins={[remarkGfm, remarkMath]}
-                                components={{
-                                    p({ children }) {
-                                        return (
-                                            <p className="mb-2 last:mb-0">
-                                                {children}
-                                            </p>
-                                        );
-                                    },
-                                    code({
-                                        node,
-                                        inline,
-                                        className,
-                                        children,
-                                        ...props
-                                    }) {
-                                        if (children.length) {
-                                            if (children[0] == "▍") {
-                                                return (
-                                                    <span className="mt-1 cursor-default animate-pulse">
-                                                        ▍
-                                                    </span>
-                                                );
-                                            }
-
-                                            children[0] = (
-                                                children[0] as string
-                                            ).replace("`▍`", "▍");
-                                        }
-
-                                        const match = /language-(\w+)/.exec(
-                                            className || ""
-                                        );
-
-                                        if (inline) {
+                            <div
+                                id={`text-content-${message.id}`}
+                                className="h-full w-full prose dark:prose-invert break-words prose-p:leading-relaxed prose-pre:p-0 text-wrap whitespace-normal markdown prose-p:last:mb-0 prose-p:mb-2">
+                                <MemoizedReactMarkdown
+                                    remarkPlugins={[remarkGfm, remarkMath]}
+                                    components={{
+                                        p({ children }) {
                                             return (
-                                                <code
-                                                    className={className}
-                                                    {...props}>
+                                                <p
+                                                    id="text-content"
+                                                    className="mb-2 last:mb-0">
                                                     {children}
-                                                </code>
+                                                </p>
                                             );
                                         }
+                                        // code({
+                                        //     node,
+                                        //     inline,
+                                        //     className,
+                                        //     children,
+                                        //     ...props
+                                        // }) {
+                                        //     if (children.length) {
+                                        //         if (children[0] == "▍") {
+                                        //             return (
+                                        //                 <span className="mt-1 cursor-default animate-pulse">
+                                        //                     ▍
+                                        //                 </span>
+                                        //             );
+                                        //         }
 
-                                        return (
-                                            <CodeBlock
-                                                key={Math.random()}
-                                                language={
-                                                    (match && match[1]) || ""
-                                                }
-                                                value={String(children).replace(
-                                                    /\n$/,
-                                                    ""
-                                                )}
-                                                {...props}
-                                            />
-                                        );
-                                    }
-                                }}>
-                                {displayedText}
-                            </MemoizedReactMarkdown>
+                                        //         children[0] = (
+                                        //             children[0] as string
+                                        //         ).replace("`▍`", "▍");
+                                        //     }
+
+                                        //     const match = /language-(\w+)/.exec(
+                                        //         className || ""
+                                        //     );
+
+                                        //     if (inline) {
+                                        //         return (
+                                        //             <code
+                                        //                 className={className}
+                                        //                 {...props}>
+                                        //                 {children}
+                                        //             </code>
+                                        //         );
+                                        //     }
+
+                                        //     return (
+                                        //         <CodeBlock
+                                        //             key={Math.random()}
+                                        //             language={
+                                        //                 (match && match[1]) ||
+                                        //                 ""
+                                        //             }
+                                        //             value={String(
+                                        //                 children
+                                        //             ).replace(/\n$/, "")}
+                                        //             {...props}
+                                        //         />
+                                        //     );
+                                        // }
+                                    }}>
+                                    {displayedText}
+                                </MemoizedReactMarkdown>
+                            </div>
                         </ErrorBoundary>
                     )}
                 </div>
+
+                {displayAudio && (
+                    <>
+                        {createPortal(
+                            <div
+                                ref={ttsRef}
+                                className={clsx(
+                                    "absolute right-0 z-[1000] transition-all duration-300 ease-in-out",
+                                    displayAudio ? "opacity-100" : "opacity-0"
+                                )}
+                                style={{
+                                    top: audioPlayerTopPosition,
+                                    transform: "translateY(-10%)"
+                                }}>
+                                <WebTTS
+                                    messageId={message.id}
+                                    text={displayedText}
+                                    displayAudioPlayer={setDisplayAudio}
+                                />
+                            </div>,
+                            document.getElementById(
+                                `message-container-${message.id}`
+                            )
+                        )}
+                    </>
+                )}
 
                 {/* Audio player component should appear on hover underneath cursor (like a context menu) */}
 
@@ -264,6 +365,19 @@ export function ChatMessage({
         </AudioProvider>
     );
 }
+
+// Memoized ReactMarkdown component with wrapped words
+// const MemoizedReactMarkdown: FC<Options> = memo(
+//     ({ children, ...props }) => {
+//         const wrappedText = wrapWordsInSpan(children);
+//         const text = wrappedText.join(" ");
+
+//         return <ReactMarkdown {...props}>{text}</ReactMarkdown>;
+//     },
+//     (prevProps, nextProps) =>
+//         prevProps.children === nextProps.children &&
+//         prevProps.className === nextProps.className
+// );
 
 const MemoizedReactMarkdown: FC<Options> = memo(
     ReactMarkdown,

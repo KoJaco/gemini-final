@@ -140,7 +140,7 @@ const SidepanelFooter = ({
                                 button.labelName === "hover-mode"
                                     ? `${
                                           hoverMode
-                                              ? "bg-foreground text-black"
+                                              ? "bg-foreground text-background"
                                               : "bg-transparent"
                                       }`
                                     : ""
