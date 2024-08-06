@@ -4,7 +4,6 @@
 import cssText from "data-text:@/style.css";
 import {
     AudioLines,
-    CornerUpLeft,
     Languages,
     List,
     ListChecks,
@@ -30,59 +29,27 @@ export const getStyle = () => {
 console.log("content script loaded");
 
 // I want to return text content with their associative tags. I also only want to return meaningful tags to be analysed... very difficult to also consider span and div content as this can result in many single character strings returned... :/
-function getPageTextContent() {
-    const meaningfulTags = [
-        "P",
-        "H1",
-        "H2",
-        "H3",
-        "H4",
-        "H5",
-        "H6",
-        "UL",
-        "OL",
-        "LI",
-        "DIV"
-    ];
 
-    const elementsWithText = [];
-
-    function hasDirectTextNode(element) {
-        for (const node of element.childNodes) {
-            if (
-                node.nodeType === Node.TEXT_NODE &&
-                node.textContent.trim().length > 3 // arbitrary, how to go about this???
-            ) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    function traverse(element) {
-        if (
-            meaningfulTags.includes(element.tagName) &&
-            hasDirectTextNode(element)
-        ) {
-            elementsWithText.push(element.outerHTML);
-        }
-
-        for (const child of element.children) {
-            traverse(child);
-        }
-    }
-
-    traverse(document.body);
-
-    return elementsWithText.join("<br/>");
-}
+type MenuOptionTitle =
+    | "Describe"
+    | "Describe and Read Aloud"
+    | "Describe and Translate"
+    | "Summarize"
+    | "Simplify"
+    | "Explain"
+    | "Translate"
+    | "Summarize and Translate"
+    | "Read aloud";
 
 const ContextMenu = () => {
+    // TODO: Add personal prompt that someone can ask about a certain hovered section.
+    // TODO: edge cases :: 1. hovering over a section that includes multiple images, 2. describing multiple images,
+    // TODO: fix styling bugs (with context menu popup, text colour taking on websites, inline-script blocked by CORS, )
     const [hoverMode, setHoverMode] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const [menuOptions, setMenuOptions] = useState<{
-        [key: string]: { title: string; icon: React.ReactNode }[];
+        [key: string]: { title: MenuOptionTitle; icon: React.ReactNode }[];
     }>({});
 
     const [isOverMenu, setIsOverMenu] = useState(false);
@@ -97,6 +64,112 @@ const ContextMenu = () => {
     const handleSetIsOverMenu = useCallback((value: boolean) => {
         setIsOverMenu(value);
     }, []);
+
+    function getPageTextContent() {
+        const meaningfulTags = [
+            "P",
+            "H1",
+            "H2",
+            "H3",
+            "H4",
+            "H5",
+            "H6",
+            "UL",
+            "OL",
+            "LI",
+            "DIV"
+        ];
+
+        const elementsWithText: string[] = [];
+
+        function hasDirectTextNode(element: Element) {
+            for (const node of element.childNodes) {
+                if (
+                    node.nodeType === Node.TEXT_NODE &&
+                    node.textContent &&
+                    node.textContent.trim().length > 3 // arbitrary, how to go about this???
+                ) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function traverse(element: Element) {
+            if (
+                meaningfulTags.includes(element.tagName) &&
+                hasDirectTextNode(element)
+            ) {
+                elementsWithText.push(element.outerHTML);
+            }
+
+            for (const child of element.children) {
+                traverse(child);
+            }
+        }
+
+        traverse(document.body);
+
+        return elementsWithText.join("<br/>");
+    }
+
+    const fetchImageData = async (url: string) => {
+        // convert to base64 string
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        return new Promise<string>((resolve) => {
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+        });
+    };
+
+    const sendMessage = async (menuOption: MenuOptionTitle) => {
+        const element = highlightedElementRef.current;
+        // TODO: add proper error handling, probably another message or a toast.
+        if (!element) return;
+
+        const data = {
+            title: menuOption,
+            content: "",
+            elementType: element.tagName
+        };
+
+        if (element.tagName === "IMG") {
+            const src = element.getAttribute("src");
+            if (src && src.length > 1) {
+                const base64Image = await fetchImageData(src);
+                data.content = base64Image;
+            } else {
+                data.content = element.innerText;
+                // TODO: handle this case properly.
+            }
+        } else {
+            switch (menuOption) {
+                case "Summarize":
+                case "Simplify":
+                case "Translate":
+                case "Summarize and Translate":
+                case "Read aloud":
+                    data.content = element.innerText;
+                    break;
+                case "Explain":
+                    data.content = element.outerHTML;
+                    break;
+                default:
+                    data.content = element.innerText;
+                    break;
+            }
+        }
+
+        chrome.runtime.sendMessage(
+            { action: "MENU_OPTION_CLICKED", payload: data },
+            (response) => {
+                // TODO: visibly handle a successful message (maybe show a green tick or something, or maybe just handle success in the sidepanel.)
+                console.log("Response from context menu: ", response);
+            }
+        );
+    };
 
     // Listeners
     useEffect(() => {
@@ -227,7 +300,7 @@ const ContextMenu = () => {
 
                     setIsVisible(true);
                     handleSetIsOverMenu(true);
-                    console.log(highlightedElementRef.current);
+                    console.log(highlightedElementRef.current?.tagName);
                     // console.log({ isOverMenu: isOverMenu });
                 }, 1000);
             }
@@ -299,24 +372,36 @@ const ContextMenu = () => {
                         transform: "translate(-50%, 0)"
                     }}
                     onMouseLeave={() => handleSetIsOverMenu(false)}>
+                    <div className="font-bold text-md -mb-2 rounded-t-[8px] bg-[#252322] -mx-4 -mt-2 py-2 px-4">
+                        <h1>
+                            Current Tag:{" "}
+                            {highlightedElementRef.current?.tagName.toLocaleUpperCase()}
+                        </h1>
+                    </div>
                     {Object.keys(menuOptions).map((header, index) => (
-                        <div key={index} className="divide-y divide">
-                            <h3 className="text-md font-bold mb-1">{header}</h3>
-                            <ul className="text-[#a8a29e] my-2">
+                        <div
+                            key={index}
+                            className="divide-y divide space-y-2 divide-opacity-50">
+                            <h2 className="text-md font-bold mb-1">{header}</h2>
+                            <ul className="text-[#a8a29e] mt-2">
                                 {menuOptions[header].map((option, subIndex) => (
-                                    <button
-                                        key={subIndex}
-                                        // variant="ghost"
-                                        name={`${header}-${option.title}`}
-                                        className=" gap-x-2 justify-start whitespace-normal h-auto w-full text-start p-2 hover:bg-[#292524] hover:text-[#fafaf9] inline-flex items-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 rounded-[6px]">
-                                        <span className="whitespace-normal">
-                                            {option.title}
-                                        </span>
+                                    <li key={subIndex}>
+                                        <button
+                                            // variant="ghost"
+                                            name={`${header}-${option.title}`}
+                                            className=" gap-x-2 justify-start whitespace-normal h-auto w-full text-start p-2 hover:bg-[#292524] hover:text-[#fafaf9] inline-flex items-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 rounded-[6px]"
+                                            onClick={() =>
+                                                sendMessage(option.title)
+                                            }>
+                                            <span className="whitespace-normal">
+                                                {option.title}
+                                            </span>
 
-                                        <span className="ml-auto">
-                                            {option.icon}
-                                        </span>
-                                    </button>
+                                            <span className="ml-auto">
+                                                {option.icon}
+                                            </span>
+                                        </button>
+                                    </li>
                                 ))}
                             </ul>
                         </div>

@@ -1,11 +1,9 @@
-## TODO
+## TODO 6/08/2024
 
-1. Add CORS policy to manifest
-2. Move api save, retrieval, and use to background script
-3. Context menu (styled and with actions)
-    - summarise this section (if it has inner text)
-    - changes choices based on whether there is inner text, whether a section has an image element within it, whether you are hovering over an image exactly, **\_**.
-    - inner text: Summarise, explain this to me, read this out to me,
+1. Fix loading skeletons
+2. Add actions to prompts so I can add a 'system' message and style to the messages
+3. Get image comprehension working
+4. Get basic web speech working.
 
 ## Preferences: - saved to sync chrome storage.
 

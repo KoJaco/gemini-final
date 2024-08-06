@@ -129,83 +129,98 @@ export function ChatMessage({
                             ? "border rounded-lg py-2.5 px-2 border-muted/50 place-self-end w-2/3 shadow backdrop-blur-lg bg-muted/50 "
                             : "place-self-start w-full"
                     )}>
-                    <ErrorBoundary
-                        fallback={
-                            <Card className="border-destructive-foreground/20 border bg-destructive/50 rounded-lg prose dark:prose-invert prose-p:leading-relaxed">
-                                <CardContent className="space-y-4">
-                                    <CardTitle className="text-sm">
-                                        Uh oh! Something went wrong.
-                                    </CardTitle>
-                                    <CardDescription>
-                                        There is a known bug in parsing
-                                        markdown-formatted code. This will be
-                                        fixed asap.
-                                    </CardDescription>
-                                </CardContent>
-                            </Card>
-                        }>
-                        <MemoizedReactMarkdown
-                            className="h-full w-full prose dark:prose-invert break-words prose-p:leading-relaxed prose-pre:p-0 text-wrap whitespace-normal markdown prose-p:last:mb-0 prose-p:mb-2"
-                            remarkPlugins={[remarkGfm, remarkMath]}
-                            components={{
-                                p({ children }) {
-                                    return (
-                                        <p className="mb-2 last:mb-0">
-                                            {children}
-                                        </p>
-                                    );
-                                },
-                                code({
-                                    node,
-                                    inline,
-                                    className,
-                                    children,
-                                    ...props
-                                }) {
-                                    if (children.length) {
-                                        if (children[0] == "▍") {
+                    {message.role === "ai-error" ? (
+                        <Card className="border-destructive-foreground/20 border bg-destructive/50 rounded-lg prose dark:prose-invert prose-p:leading-relaxed w-full h-auto overflow-hidden flex">
+                            <CardContent className="space-y-4 w-full text-wrap flex-wrap">
+                                <CardTitle className="text-sm">
+                                    Generative AI Error
+                                </CardTitle>
+                                <CardDescription className="w-full text-wrap truncate flex flex-wrap whitespace-normal break-all">
+                                    {displayedText}
+                                </CardDescription>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <ErrorBoundary
+                            fallback={
+                                <Card className="border-destructive-foreground/20 border bg-destructive/50 rounded-lg prose dark:prose-invert prose-p:leading-relaxed">
+                                    <CardContent className="space-y-4">
+                                        <CardTitle className="text-sm">
+                                            Uh oh! Something went wrong.
+                                        </CardTitle>
+                                        <CardDescription>
+                                            There is a known bug in parsing
+                                            markdown-formatted code. This will
+                                            be fixed asap.
+                                        </CardDescription>
+                                    </CardContent>
+                                </Card>
+                            }>
+                            <MemoizedReactMarkdown
+                                className="h-full w-full prose dark:prose-invert break-words prose-p:leading-relaxed prose-pre:p-0 text-wrap whitespace-normal markdown prose-p:last:mb-0 prose-p:mb-2"
+                                remarkPlugins={[remarkGfm, remarkMath]}
+                                components={{
+                                    p({ children }) {
+                                        return (
+                                            <p className="mb-2 last:mb-0">
+                                                {children}
+                                            </p>
+                                        );
+                                    },
+                                    code({
+                                        node,
+                                        inline,
+                                        className,
+                                        children,
+                                        ...props
+                                    }) {
+                                        if (children.length) {
+                                            if (children[0] == "▍") {
+                                                return (
+                                                    <span className="mt-1 cursor-default animate-pulse">
+                                                        ▍
+                                                    </span>
+                                                );
+                                            }
+
+                                            children[0] = (
+                                                children[0] as string
+                                            ).replace("`▍`", "▍");
+                                        }
+
+                                        const match = /language-(\w+)/.exec(
+                                            className || ""
+                                        );
+
+                                        if (inline) {
                                             return (
-                                                <span className="mt-1 cursor-default animate-pulse">
-                                                    ▍
-                                                </span>
+                                                <code
+                                                    className={className}
+                                                    {...props}>
+                                                    {children}
+                                                </code>
                                             );
                                         }
 
-                                        children[0] = (
-                                            children[0] as string
-                                        ).replace("`▍`", "▍");
-                                    }
-
-                                    const match = /language-(\w+)/.exec(
-                                        className || ""
-                                    );
-
-                                    if (inline) {
                                         return (
-                                            <code
-                                                className={className}
-                                                {...props}>
-                                                {children}
-                                            </code>
+                                            <CodeBlock
+                                                key={Math.random()}
+                                                language={
+                                                    (match && match[1]) || ""
+                                                }
+                                                value={String(children).replace(
+                                                    /\n$/,
+                                                    ""
+                                                )}
+                                                {...props}
+                                            />
                                         );
                                     }
-
-                                    return (
-                                        <CodeBlock
-                                            key={Math.random()}
-                                            language={(match && match[1]) || ""}
-                                            value={String(children).replace(
-                                                /\n$/,
-                                                ""
-                                            )}
-                                            {...props}
-                                        />
-                                    );
-                                }
-                            }}>
-                            {displayedText}
-                        </MemoizedReactMarkdown>
-                    </ErrorBoundary>
+                                }}>
+                                {displayedText}
+                            </MemoizedReactMarkdown>
+                        </ErrorBoundary>
+                    )}
                 </div>
 
                 {/* Audio player component should appear on hover underneath cursor (like a context menu) */}

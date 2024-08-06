@@ -90,6 +90,11 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
                     );
                     return true;
 
+                case "MENU_OPTION_CLICKED":
+                    console.log("Content menu option click: ", message.payload);
+                    sendResponse({ success: true });
+                    return true;
+
                 default:
                     sendResponse({
                         success: false,
@@ -106,14 +111,6 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             error: `Error in querying the active tab. The error response message is as follows: ${error.message}`
         });
     }
-
-    // case "deactivateHoverMode":
-    //     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    //         chrome.tabs.sendMessage(tabs[0].id, {
-    //             action: "deactivateHoverMode"
-    //         });
-    //     });
-    //     return true;
 });
 
 // const storage = new Storage()

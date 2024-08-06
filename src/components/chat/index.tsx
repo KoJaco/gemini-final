@@ -27,6 +27,36 @@ import {
     CarouselPrevious
 } from "../ui/carousel";
 
+// TODO: these should probably be slugs
+type MenuOptionTitle =
+    | "Describe"
+    | "Describe and Read Aloud"
+    | "Describe and Translate"
+    | "Summarize"
+    | "Simplify"
+    | "Explain"
+    | "Translate"
+    | "Summarize and Translate"
+    | "Read aloud";
+
+// TODO: Add actions attached to each record that we can add as our user message... this could be a different style maybe.
+export const menuOptionToPrompt: Record<MenuOptionTitle, string> = {
+    Describe:
+        "Describe following image and pay close attention to the details:",
+    "Describe and Read Aloud":
+        "Describe and the following image and pay close attention to the details:",
+    "Describe and Translate":
+        "Describe and the following image and return your response in",
+    Summarize:
+        "Summarize the content of the following element. If you cannot find a reasonable solution for simplification, state why you cannot simplify it. Here is the element to simplify:",
+    Simplify: "Simplify the content of the following element:",
+    Explain: "Explain the content of the following element in detail:",
+    Translate: "Translate the content of the following element",
+    "Summarize and Translate":
+        "Summarize and translate the content of the following element",
+    "Read aloud": "Read aloud the content of the following element:"
+};
+
 const Chat = ({
     thread,
     setThread,
@@ -44,17 +74,44 @@ const Chat = ({
     const [input, setInput] = useState<string>("");
 
     const hoveredElementRef = useRef<HTMLElement | null>(null);
+
     const [contextOption, setContextOption] = useState(null);
+
+    // TODO: Extrapolate out types on put into single file.
 
     // handle forwarded messages from background script.
     useEffect(() => {
-        const handleMessage = (message) => {
-            if (message.action === "hoverElement") {
-                hoveredElementRef.current = message.element;
-                // console.log("Hovered Element: ", hoveredElementRef.current)
-            } else if (message.action === "contextOption") {
-                hoveredElementRef.current = message.element;
-                setContextOption(message.option);
+        const handleMessage = (message: {
+            action:
+                | "MENU_OPTION_CLICKED"
+                | "GET_PAGE_TEXT_CONTENT"
+                | "TOGGLE_HOVER_MODE";
+            payload?: any;
+        }) => {
+            console.log(message);
+            if (message.action === "MENU_OPTION_CLICKED") {
+                const { title, content, elementType } = message.payload;
+
+                // TODO: Add edge case handling :: I don't want people to be requesting simplification for one word.
+
+                if (title === "Simplify") {
+                    const toSimplify: string[] = content.split(" ");
+                    // TODO: proper handling... 8 words is arbitrary... allow users to set?
+                    if (!toSimplify || toSimplify.length < 8) {
+                        console.info(
+                            `You're trying to simplify text that is already very simple.`
+                        );
+                        return;
+                    }
+                }
+
+                if (Object.keys(menuOptionToPrompt).includes(title)) {
+                    handleContextOption({ title, content, elementType });
+                } else {
+                    console.error("Menu option somehow didn't exist! ", title);
+                }
+
+                // setContextOption(message.option);
             }
         };
 
@@ -65,60 +122,117 @@ const Chat = ({
         };
     }, []);
 
-    useEffect(() => {
-        if (contextOption && hoveredElementRef.current) {
-            // push context option and all associated element details to Gemini, then wait for a response/suggested fix.
-            handleContextOption(contextOption, hoveredElementRef.current);
+    const handleContextOption = async ({
+        title,
+        content,
+        elementType
+    }: {
+        title: MenuOptionTitle;
+        content: string;
+        elementType: string;
+    }) => {
+        let prompt: string = "";
+
+        // TODO: grab from preferences object
+        const languagePreference = "Spanish";
+
+        if (elementType === "IMG") {
+            switch (title) {
+                case "Describe":
+                    prompt = `${menuOptionToPrompt[title]} ${content}`;
+                    break;
+                case "Describe and Read Aloud":
+                    // additional logic for reading aloud after
+                    prompt = `${menuOptionToPrompt[title]} ${content}`;
+                    break;
+                case "Describe and Translate":
+                    prompt = `You are a translator who can translate many languages into ${languagePreference}. ${menuOptionToPrompt[title]} ${content}`;
+                    break;
+                default:
+                    prompt = `${menuOptionToPrompt[title]} ${content}`;
+                    break;
+            }
         }
-    }, [contextOption]);
+        if (title === "Translate" || title === "Summarize and Translate") {
+            prompt = `You are a translator who can translate many languages into ${languagePreference}. ${menuOptionToPrompt[title]} to ${languagePreference}: ${content}`;
+        } else {
+            prompt = `${menuOptionToPrompt[title]} ${content}`;
+        }
 
-    const handleContextOption = async (
-        option: ContextOption,
-        element: HTMLElement
-    ) => {
-        switch (option) {
-            case "read":
-                // Send a prompt to LLM to read aloud the element's text content
-                console.log("Read Aloud:", element.textContent);
-                break;
-            case "summarize":
-                // Send a prompt to LLM to summarize the element's text content
-                console.log("Summarize:", element.textContent);
-                break;
+        // TODO: Should there be a user message? Or simply a gemini message based on a command?
+        try {
+            const currentSummary =
+                (await getSummaryOnThread(thread.threadId))?.content ||
+                "No current summary";
 
-            case "simplify":
-                // TODO: this should be pushed into the thread as a new message.
-                console.log("Simplify", element.textContent);
-                if (element.textContent) {
-                    const prompt = `Simplify the following text content from a section in a website making sure you return the new text content in the same format as the received text content. If you cannot find a reasonable solution for simplification, just return back the original and add the following to the start of the message back: <simplification_not_available>. The text content is as follows: ${element.textContent}. `;
-                    const simplifiedText = await fetchData(prompt);
-                    if (simplifiedText) {
-                        updateElementText(element.id, simplifiedText);
-                    } else {
-                        console.log("No simplified text, error");
-                    }
+            const aiResponse = await fetchData(prompt);
+
+            if (aiResponse.success) {
+                const newGeminiMessage: Message = {
+                    role: "assistant",
+                    content: aiResponse.data,
+                    id: nanoid(),
+                    createdAt: new Date().toISOString(),
+                    threadId: thread.threadId
+                };
+                const newThread = {
+                    ...thread,
+                    messages: [...thread.messages, newGeminiMessage]
+                };
+
+                const updateThreadRes = await updateThread(
+                    thread.threadId,
+                    newGeminiMessage
+                );
+
+                if (updateThreadRes.success) {
+                    setThread(newThread);
                 } else {
-                    console.log("No text content in element");
+                    console.error("Error updating thread in database");
                 }
-                break;
 
-            case "translate":
-                // Send a prompt to LLM to translate the element's text content
-                console.log("Translate:", element.textContent);
-                break;
-            default:
-                break;
+                // TODO: update summary object. periodically... hmmm how to handle this?? Need a non-hacky way of handling this ay.
+
+                await updateConversationSummary(
+                    thread.threadId,
+                    currentSummary,
+                    aiResponse.data
+                );
+            } else {
+                const newGeminiMessage: Message = {
+                    role: "ai-error",
+                    content: aiResponse.data,
+                    id: nanoid(),
+                    createdAt: new Date().toISOString(),
+                    threadId: thread.threadId
+                };
+
+                const newThread = {
+                    ...thread,
+                    messages: [...thread.messages, newGeminiMessage]
+                };
+
+                updateThread(thread.threadId, newGeminiMessage).then(
+                    (resultSet) => {
+                        console.log(resultSet);
+
+                        if (resultSet.success) {
+                            setThread(newThread);
+                        } else {
+                            // TODO: System message.
+                            console.error(resultSet.message);
+                        }
+                    }
+                );
+
+                console.log("Could not generate AI response");
+            }
+        } catch (error) {
+            console.error("ERROR when handling context option: ", error);
         }
     };
 
-    const updateElementText = (elementId: string, newText: string) => {
-        console.log("Element Id: ", elementId);
-        console.log("Simplified text: ", newText);
-        const element = document.getElementById(elementId);
-        if (element) {
-            element.textContent = newText;
-        }
-    };
+    // TODO: Add another fetchDataImage
 
     const fetchData = async (prompt: string, summary?: string | null) => {
         setResponseLoading(true);
@@ -136,14 +250,10 @@ const Chat = ({
             const response = await result.response;
             const text = response.text();
 
-            return text;
-
-            // const combinedText = text
-            //     .split("\n")
-            //     .filter((paragraph) => paragraph.trim().length > 0)
-            //     .join("\n\n");
+            return { success: true, data: text };
         } catch (err) {
-            console.error(err);
+            console.error(err.message);
+            return { success: false, data: err.message };
         } finally {
             setResponseLoading(false);
         }
@@ -236,10 +346,10 @@ const Chat = ({
                 currentSummary
             );
 
-            if (aiResponse) {
+            if (aiResponse.success) {
                 const newGeminiMessage: Message = {
                     role: "assistant",
-                    content: aiResponse,
+                    content: aiResponse.data,
                     id: nanoid(),
                     createdAt: new Date().toISOString(),
                     threadId: thread.threadId
@@ -273,7 +383,7 @@ const Chat = ({
                 await updateConversationSummary(
                     thread.threadId,
                     currentSummary,
-                    aiResponse
+                    aiResponse.data
                 );
 
                 // const newSummaryContent =
@@ -287,6 +397,32 @@ const Chat = ({
 
                 // await saveSummaryToThread(newSummary, thread.threadId);
             } else {
+                const newGeminiMessage: Message = {
+                    role: "ai-error",
+                    content: aiResponse.data,
+                    id: nanoid(),
+                    createdAt: new Date().toISOString(),
+                    threadId: thread.threadId
+                };
+
+                const newThread = {
+                    ...updatedThread,
+                    messages: [...updatedThread.messages, newGeminiMessage]
+                };
+
+                updateThread(thread.threadId, newGeminiMessage).then(
+                    (resultSet) => {
+                        console.log(resultSet);
+
+                        if (resultSet.success) {
+                            setThread(newThread);
+                        } else {
+                            // TODO: System message.
+                            console.error(resultSet.message);
+                        }
+                    }
+                );
+
                 console.log("Could not generate AI response");
             }
         } catch (error) {
@@ -393,10 +529,10 @@ const Chat = ({
 
             const aiResponse = await fetchData(messageToGemini, currentSummary);
 
-            if (aiResponse) {
+            if (aiResponse.success) {
                 const newGeminiMessage: Message = {
                     role: "assistant",
-                    content: aiResponse,
+                    content: aiResponse.data,
                     id: nanoid(),
                     createdAt: new Date().toISOString(),
                     threadId: thread.threadId
@@ -413,6 +549,7 @@ const Chat = ({
                         if (resultSet.success) {
                             setThread(newThread);
                         } else {
+                            // TODO: system message warning.
                             console.error(resultSet.message);
                         }
                     }
@@ -421,9 +558,36 @@ const Chat = ({
                 await updateConversationSummary(
                     thread.threadId,
                     currentSummary,
-                    aiResponse
+                    aiResponse.data
                 );
             } else {
+                const newGeminiMessage: Message = {
+                    role: "ai-error",
+                    content: aiResponse.data,
+                    id: nanoid(),
+                    createdAt: new Date().toISOString(),
+                    threadId: thread.threadId
+                };
+
+                const newThread = {
+                    ...updatedThread,
+                    messages: [...updatedThread.messages, newGeminiMessage]
+                };
+
+                updateThread(thread.threadId, newGeminiMessage).then(
+                    (resultSet) => {
+                        console.log(resultSet);
+
+                        if (resultSet.success) {
+                            setThread(newThread);
+                        } else {
+                            // TODO: System message.
+                            console.error(resultSet.message);
+                        }
+                    }
+                );
+
+                // Don't need to update conversation summary.
                 console.log(
                     "Could not set new message type, something went wrong."
                 );

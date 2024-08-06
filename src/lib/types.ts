@@ -13,7 +13,15 @@ export type HelpfulQuestion = {
 };
 
 export interface Message {
-    role: "user" | "assistant" | "system" | "function" | "data" | "tool";
+    role:
+        | "user"
+        | "assistant"
+        | "system"
+        | "function"
+        | "data"
+        | "tool"
+        | "ai-warning"
+        | "ai-error";
     content: string;
     id?: string;
     name?: string;
