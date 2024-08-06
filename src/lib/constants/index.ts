@@ -1,1 +1,2 @@
-export { footerButtons } from "./components"
+export { footerButtons, helpfulQuestions } from "./components";
+export { defaultPreferences } from "./storage";

@@ -14,7 +14,12 @@ import WebTTS from "@/components/web-tts";
 import { useScrollAnchor } from "@/lib/hooks/use-scroll-anchor";
 import { Providers } from "@/lib/providers";
 import { createNewChatThread, getLatestThread } from "@/lib/storage/indexed-db";
-import { getApiKey, removeApiKey } from "@/lib/storage/secure";
+import {
+    getApiKey,
+    getPreferences,
+    removeApiKey,
+    setPreferences
+} from "@/lib/storage/secure";
 import { useAppStore } from "@/lib/stores/appStore";
 import type { AvailableViews, ChatThread } from "@/lib/types";
 import clsx from "clsx";
@@ -65,6 +70,8 @@ const Sidepanel = () => {
         fetchApiKey();
     }, []);
 
+    useEffect(() => {});
+
     useEffect(() => {
         async function fetchOrCreateLatestThread() {
             const latestThread = await getLatestThread();
@@ -103,28 +110,6 @@ const Sidepanel = () => {
 
         fetchOrCreateLatestThread();
     }, []);
-
-    // console.log(currentChatThread)
-
-    // Messaging / Chrome
-    //   const resp = await sendToBackground({
-    //     name: "ping",
-    //     body: {
-    //       id: "123"
-    //     }
-    //   })
-
-    // async function handleRemoveApiKey(
-    //     name: "googleGeminiApiKey" | "whisperApiKey"
-    // ) {
-    //     const res = await removeApiKey(name);
-    //     if (res.success) {
-    //         setGeminiApiKey(null);
-    //         console.log("removed api key");
-    //         console.log("API KEY", geminiApiKey);
-    //         console.log(res.message || "No message");
-    //     }
-    // }
 
     function renderCurrentView() {
         switch (currentView) {
@@ -198,52 +183,11 @@ const Sidepanel = () => {
                     <div className="flex flex-col h-full w-full">
                         <header className="px-4 mb-4 flex-col flex">
                             <h1 className="text-lg text-left">Gemini Helper</h1>
-                            {/* <div className="flex w-full items-center gap-x-2">
-                <span
-                  className={clsx(
-                    "bg-emerald-500 rounded-full w-4 h-4 flex",
-                    enabled ? "bg-green-500" : "bg-red-500"
-                  )}
-                />
-                <h1 className="text-lg">{enabled ? "Enabled" : "Disabled"}</h1>
-                <div className="ml-auto">
-                  <ActivateGeminiToggle
-                    enabled={enabled}
-                    setEnabled={setEnabled}
-                  />
-                </div>
-              </div> */}
                         </header>
 
                         {/* main content */}
                         {renderCurrentView()}
 
-                        {/* <WebTTS
-                            text={
-                                "A utility-first CSS framework packed with classes like flex, pt-4, text-center and rotate-90 that can be composed to build any design, directly in your markup."
-                            }
-                        /> */}
-                        {/* <MainView
-              currentChatThread={currentChatThread}
-              setCurrentChatThread={setCurrentChatThread}
-              isAtBottom={isAtBottom}
-              scrollToBottom={scrollToBottom}
-              messagesRef={messagesRef}
-              scrollRef={scrollRef}
-              visibilityRef={visibilityRef}
-            /> */}
-
-                        {/* Sidepanel<button onClick={openWelcomePage}>Open Welcome Page</button> */}
-                        {/* <Button
-                            onClick={() =>
-                                handleRemoveApiKey("googleGeminiApiKey")
-                            }>
-                            Remove Gemini API Key
-                        </Button>
-                        <Button
-                            onClick={() => handleRemoveApiKey("whisperApiKey")}>
-                            Remove Whisper API Key
-                        </Button> */}
                         <SidepanelFooter
                             currentView={"main"}
                             setCurrentView={setCurrentView}

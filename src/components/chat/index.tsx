@@ -37,6 +37,8 @@ import {
 
 // TODO: Big clean up of this file, repeated functionality that could be brought outside of if else clauses, repeated functions (condense), etc... I wrote this very quickly...
 
+// TODO: 1. context menu options don't update the thread properly (local state), 2. Should we attach and render images in the chat interface? requires storing on messages && creating a new store, 3.
+
 // TODO: these should probably be slugs
 type MenuOptionTitle =
     | "Describe"

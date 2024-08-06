@@ -7,6 +7,43 @@ export type FooterButtonType = {
 
 export type ContextOption = "read" | "summarize" | "simplify" | "translate";
 
+type AiCharacteristics = {
+    characteristics: {
+        // add a few more of these
+        label:
+            | "simplicity"
+            | "detail"
+            | "clarity"
+            | "conciseness"
+            | "tone"
+            | "engagement"
+            | "creativity"
+            | "custom";
+        value: string;
+    };
+};
+
+type AiInteractions = {
+    interactions: {
+        description: string;
+        label: "further-explanations" | "examples" | "follow-up-questions";
+        value: boolean;
+    };
+};
+
+type ApplicationSettings = {
+    translateToLanguage: {
+        value:
+            | { id: "es"; language: "spanish" }
+            | { id: "en-AU"; language: "english" };
+    };
+};
+
+export interface Preferences {
+    aiSettings: (AiCharacteristics | AiInteractions)[];
+    applicationSettings: ApplicationSettings[];
+}
+
 export type HelpfulQuestion = {
     labelName: "summarize-page" | "main-purpose" | "explain-complex-terms";
     prompt: string;

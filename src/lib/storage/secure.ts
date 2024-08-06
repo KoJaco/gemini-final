@@ -1,3 +1,5 @@
+import type { Preferences } from "@/lib/types";
+
 import { SecureStorage } from "@plasmohq/storage/secure";
 
 import type { ResultObject } from "../types";
@@ -10,6 +12,11 @@ if (!password || password.length === 0) {
         "Secure Storage Password is not defined in environment file."
     );
 }
+
+// API keys are kept separate to preferences...
+export const setPreferences = async () => {};
+
+export const getPreferences = async () => {};
 
 export const storeGeminiApiKey = async (
     geminiApiKey: string

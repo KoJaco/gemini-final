@@ -1,15 +1,20 @@
 import { PreferencesForm } from "@/components/forms/preferences-form";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { defaultPreferences } from "@/lib/constants";
 import type { AvailableViews } from "@/lib/types";
 import { CornerUpLeft } from "lucide-react";
-import React from "react";
+import React, { useEffect } from "react";
 
 type Props = {
     setOpenView: (value: AvailableViews) => void;
 };
 
 export const PreferencesView = ({ setOpenView }: Props) => {
+    // Grab preferences object, this should
+
+    useEffect(() => {}, []);
+
     return (
         <div className="h-3/4 w-full flex flex-1 flex-col gap-y-4 overflow-y-auto p-4">
             <h2 className="mt-4 mb-2 text-lg font-bold">Preferences</h2>

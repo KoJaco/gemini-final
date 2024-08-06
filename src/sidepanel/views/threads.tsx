@@ -22,6 +22,10 @@ type Props = {
     setCurrentThread: (value: ChatThread) => void;
 };
 
+// TODO: creating a new chat in threads should push this here, or redirect to the new chat.
+
+// TODO: maybe don't include the ID... no point? Just the first few lines of message truncated.
+
 export const ThreadsView = ({
     setOpenView,
     currentThread,
