@@ -13,7 +13,12 @@ import type {
     Message,
     ThreadSummary
 } from "@/lib/types";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import {
+    GoogleGenerativeAI,
+    type GenerativeContentBlob,
+    type InlineDataPart,
+    type Part
+} from "@google/generative-ai";
 import { nanoid } from "nanoid";
 import { useEffect, useRef, useState } from "react";
 
@@ -26,6 +31,8 @@ import {
     CarouselNext,
     CarouselPrevious
 } from "../ui/carousel";
+
+// TODO: Big clean up of this file, repeated functionality that could be brought outside of if else clauses, repeated functions (condense), etc... I wrote this very quickly...
 
 // TODO: these should probably be slugs
 type MenuOptionTitle =
@@ -40,21 +47,46 @@ type MenuOptionTitle =
     | "Read aloud";
 
 // TODO: Add actions attached to each record that we can add as our user message... this could be a different style maybe.
-export const menuOptionToPrompt: Record<MenuOptionTitle, string> = {
-    Describe:
-        "Describe following image and pay close attention to the details:",
-    "Describe and Read Aloud":
-        "Describe and the following image and pay close attention to the details:",
-    "Describe and Translate":
-        "Describe and the following image and return your response in",
-    Summarize:
-        "Summarize the content of the following element. If you cannot find a reasonable solution for simplification, state why you cannot simplify it. Here is the element to simplify:",
-    Simplify: "Simplify the content of the following element:",
-    Explain: "Explain the content of the following element in detail:",
-    Translate: "Translate the content of the following element",
-    "Summarize and Translate":
-        "Summarize and translate the content of the following element",
-    "Read aloud": "Read aloud the content of the following element:"
+export const menuOptionToPrompt: Record<
+    MenuOptionTitle,
+    { action: string; prompt: string }
+> = {
+    Describe: {
+        action: "Describing selected image.",
+        prompt: "Describe the following image and pay close attention to the details:"
+    },
+    "Describe and Read Aloud": {
+        action: "Describing and reading aloud selected image.",
+        prompt: "Describe and read aloud the following image and pay close attention to the details:"
+    },
+    "Describe and Translate": {
+        action: "Describing and translating selected image.",
+        prompt: "Describe the following image and return your response in:"
+    },
+    Summarize: {
+        action: "Summarizing content.",
+        prompt: "Summarize the content of the following element. If you cannot find a reasonable solution for simplification, state why you cannot simplify it. Here is the element to summarize:"
+    },
+    Simplify: {
+        action: "Simplifying content.",
+        prompt: "Simplify the content of the following element:"
+    },
+    Explain: {
+        action: "Explaining content.",
+        prompt: "Explain the content of the following element in detail:"
+    },
+    Translate: {
+        action: "Translating content.",
+        prompt: "Translate the content of the following element:"
+    },
+    "Summarize and Translate": {
+        action: "Summarizing and translating content.",
+        prompt: "Summarize and translate the content of the following element:"
+    },
+    "Read aloud": {
+        action: "Reading aloud content.",
+        prompt: "Read aloud the content of the following element:"
+    }
 };
 
 const Chat = ({
@@ -90,7 +122,8 @@ const Chat = ({
         }) => {
             console.log(message);
             if (message.action === "MENU_OPTION_CLICKED") {
-                const { title, content, elementType } = message.payload;
+                const { title, content, inlineData, elementType } =
+                    message.payload;
 
                 // TODO: Add edge case handling :: I don't want people to be requesting simplification for one word.
 
@@ -106,7 +139,12 @@ const Chat = ({
                 }
 
                 if (Object.keys(menuOptionToPrompt).includes(title)) {
-                    handleContextOption({ title, content, elementType });
+                    handleContextOption({
+                        title,
+                        content,
+                        inlineData,
+                        elementType
+                    });
                 } else {
                     console.error("Menu option somehow didn't exist! ", title);
                 }
@@ -125,47 +163,95 @@ const Chat = ({
     const handleContextOption = async ({
         title,
         content,
+        inlineData,
         elementType
     }: {
         title: MenuOptionTitle;
         content: string;
+        inlineData: null | { data: string; mimeType: string };
         elementType: string;
     }) => {
         let prompt: string = "";
 
         // TODO: grab from preferences object
         const languagePreference = "Spanish";
+        const systemMessage = menuOptionToPrompt[title].action;
 
         if (elementType === "IMG") {
+            if (!inlineData) {
+                console.log("No inline data supplied for image.");
+            }
             switch (title) {
                 case "Describe":
-                    prompt = `${menuOptionToPrompt[title]} ${content}`;
+                    prompt = `${menuOptionToPrompt[title].prompt}`;
                     break;
                 case "Describe and Read Aloud":
                     // additional logic for reading aloud after
-                    prompt = `${menuOptionToPrompt[title]} ${content}`;
+                    prompt = `${menuOptionToPrompt[title].prompt}`;
                     break;
                 case "Describe and Translate":
-                    prompt = `You are a translator who can translate many languages into ${languagePreference}. ${menuOptionToPrompt[title]} ${content}`;
+                    prompt = `You are a translator who can translate many languages into ${languagePreference}. ${menuOptionToPrompt[title]}`;
                     break;
                 default:
-                    prompt = `${menuOptionToPrompt[title]} ${content}`;
+                    prompt = `${menuOptionToPrompt[title].prompt}`;
                     break;
             }
         }
         if (title === "Translate" || title === "Summarize and Translate") {
-            prompt = `You are a translator who can translate many languages into ${languagePreference}. ${menuOptionToPrompt[title]} to ${languagePreference}: ${content}`;
+            prompt = `You are a translator who can translate many languages into ${languagePreference}. ${menuOptionToPrompt[title].prompt} to ${languagePreference}: ${content}`;
         } else {
-            prompt = `${menuOptionToPrompt[title]} ${content}`;
+            prompt = `${menuOptionToPrompt[title].prompt} ${content}`;
         }
 
         // TODO: Should there be a user message? Or simply a gemini message based on a command?
+
+        setTypewriter(true);
+
+        const newUserMessage: Message = {
+            role: "system",
+            content: systemMessage,
+            id: nanoid(),
+            createdAt: new Date().toISOString(),
+            threadId: thread.threadId
+        };
+
+        const updatedThread = {
+            ...thread,
+            messages: [...thread.messages, newUserMessage]
+        };
+
         try {
+            updateThread(thread.threadId, newUserMessage).then((resultSet) => {
+                if (resultSet.success) {
+                    setThread(updatedThread);
+                    console.log(resultSet.message);
+                } else {
+                    console.error(resultSet.message);
+                }
+            });
+
             const currentSummary =
                 (await getSummaryOnThread(thread.threadId))?.content ||
                 "No current summary";
 
-            const aiResponse = await fetchData(prompt);
+            let aiResponse: { success: boolean; data: string };
+
+            if (elementType === "IMG" && inlineData) {
+                const imagePart: InlineDataPart = {
+                    inlineData: {
+                        mimeType: inlineData.mimeType,
+                        data: inlineData.data
+                    }
+                };
+                console.log(imagePart);
+                aiResponse = await fetchTextDataFromTextAndImage(
+                    prompt,
+                    imagePart
+                );
+            } else {
+                // TODO: handle this properly.
+                aiResponse = await fetchData(prompt);
+            }
 
             if (aiResponse.success) {
                 const newGeminiMessage: Message = {
@@ -176,8 +262,8 @@ const Chat = ({
                     threadId: thread.threadId
                 };
                 const newThread = {
-                    ...thread,
-                    messages: [...thread.messages, newGeminiMessage]
+                    ...updatedThread,
+                    messages: [...updatedThread.messages, newGeminiMessage]
                 };
 
                 const updateThreadRes = await updateThread(
@@ -208,8 +294,8 @@ const Chat = ({
                 };
 
                 const newThread = {
-                    ...thread,
-                    messages: [...thread.messages, newGeminiMessage]
+                    ...updatedThread,
+                    messages: [...updatedThread.messages, newGeminiMessage]
                 };
 
                 updateThread(thread.threadId, newGeminiMessage).then(
@@ -233,6 +319,28 @@ const Chat = ({
     };
 
     // TODO: Add another fetchDataImage
+
+    const fetchTextDataFromTextAndImage = async (
+        prompt: string,
+        imagePart: Part
+    ) => {
+        setResponseLoading(true);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // let newMessage: Message | null = null;
+
+        try {
+            const result = await model.generateContent([prompt, imagePart]);
+            const response = await result.response;
+            const text = response.text();
+
+            return { success: true, data: text };
+        } catch (err) {
+            console.error(err.message);
+            return { success: false, data: err.message };
+        } finally {
+            setResponseLoading(false);
+        }
+    };
 
     const fetchData = async (prompt: string, summary?: string | null) => {
         setResponseLoading(true);

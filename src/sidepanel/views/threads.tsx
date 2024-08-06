@@ -127,7 +127,7 @@ export const ThreadsView = ({
                                         <CardTitle className="flex w-full max-h-18 truncate whitespace-normal text-sm leading-2">
                                             {thrd.threadId}
                                         </CardTitle>
-                                        <CardDescription className="mt-2 mb-4 h-20 text-lg overflow-hidden">
+                                        <CardDescription className="mt-2 mb-4 h-20 text-lg overflow-hidden break-all">
                                             {/* {thrd.messages.length > 1 ? (
                                                 <span>
                                                     {thrd.messages[1].content}
@@ -137,10 +137,18 @@ export const ThreadsView = ({
                                                     {thrd.messages[0].content}
                                                 </span>
                                             )} */}
-                                            <span className="text-clip whitespace-normal">
-                                                {stripSummary(
+                                            <span className="text-clip whitespace-normal break-all">
+                                                {
+                                                    thrd.messages[
+                                                        thrd.messages.length - 1
+                                                    ].content
+                                                }
+                                                {/* {stripSummary(
                                                     thrd.summary?.content
-                                                ) || thrd.messages[0].content}
+                                                ) ||
+                                                    thrd.messages[
+                                                        thrd.messages.length - 1
+                                                    ].content} */}
                                             </span>
                                         </CardDescription>
                                         <CardDescription className="text-muted-foreground mt-2">

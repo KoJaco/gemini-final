@@ -115,13 +115,46 @@ const ContextMenu = () => {
 
     const fetchImageData = async (url: string) => {
         // convert to base64 string
-        const response = await fetch(url);
-        const blob = await response.blob();
-        const reader = new FileReader();
-        return new Promise<string>((resolve) => {
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.readAsDataURL(blob);
-        });
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const mimeType = blob.type;
+
+            // const base64EncodedDataPromise = new Promise((resolve, reject) => {
+            //     const reader = new FileReader();
+            //     reader.onloadend = () => {
+            //         const base64String = reader.result as string;
+            //         resolve(base64String.split(',')[1])
+            //     }
+            //     reader.readAsDataU
+            // })
+
+            // return {
+
+            // }
+
+            return new Promise<{ data: string; mimeType: string }>(
+                (resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const base64String = reader.result as string;
+
+                        console.log(base64String);
+                        const base64Data = base64String.split(",")[1];
+
+                        // Remove the data URL prefix ... need to find out the format that gemini expects... no docs???
+                        resolve({ data: base64Data, mimeType: mimeType });
+                    };
+                    reader.onerror = () =>
+                        reject(new Error("Failed to read the blob as base64"));
+                    reader.readAsDataURL(blob);
+                }
+            );
+        } catch (error) {
+            // TODO: handle this properly
+            console.warn("Error in fetching image... report this");
+            return { data: "", mimeType: "" };
+        }
     };
 
     const sendMessage = async (menuOption: MenuOptionTitle) => {
@@ -132,14 +165,18 @@ const ContextMenu = () => {
         const data = {
             title: menuOption,
             content: "",
+            inlineData: null,
             elementType: element.tagName
         };
+
+        console.log(element);
 
         if (element.tagName === "IMG") {
             const src = element.getAttribute("src");
             if (src && src.length > 1) {
                 const base64Image = await fetchImageData(src);
-                data.content = base64Image;
+                const imageGenData = base64Image;
+                data.inlineData = imageGenData;
             } else {
                 data.content = element.innerText;
                 // TODO: handle this case properly.

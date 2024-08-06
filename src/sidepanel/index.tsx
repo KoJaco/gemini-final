@@ -78,7 +78,7 @@ const Sidepanel = () => {
                     threadId: id,
                     messages: [
                         {
-                            role: "system",
+                            role: "assistant",
                             content:
                                 "Hey! I'm your personal AI assistant trying to make the web a more accessible place for all. Ask me anything!",
                             id: `msg-open`,

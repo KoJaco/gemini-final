@@ -21,7 +21,7 @@ import { useAppStore } from "@/lib/stores/appStore";
 import type { Message } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import clsx from "clsx";
-import { AudioLines } from "lucide-react";
+import { AudioLines, MonitorCog } from "lucide-react";
 import React, { memo, useEffect, useState, type FC } from "react";
 import ReactMarkdown, { type Options } from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -97,6 +97,7 @@ export function ChatMessage({
             console.log(res);
         }
     }
+    // TODO: Adjust system message styling..
 
     // console.log("displayedText", displayedText);
 
@@ -112,21 +113,26 @@ export function ChatMessage({
                 <div
                     className={clsx(
                         "flex w-full mb-2",
-                        message.role === "user"
+                        message.role === "user" || message.role === "system"
                             ? "justify-end"
                             : "justify-start"
                     )}>
-                    {message.role === "user" ? (
+                    {message.role === "user" && (
                         <IconUser className="w-4 h-4" />
-                    ) : (
-                        <IconGemini className="w-4 h-4 text-red-500" />
+                    )}
+                    {message.role === "assistant" ||
+                        (message.role === "ai-error" && (
+                            <IconGemini className="w-4 h-4 text-red-500" />
+                        ))}
+                    {message.role === "system" && (
+                        <MonitorCog className="w-4 h-4 text-orange-500" />
                     )}
                 </div>
                 <div
                     className={cn(
                         "flex size-8 h-auto items-center text-left transition-colors duration-300",
-                        message.role === "user"
-                            ? "border rounded-lg py-2.5 px-2 border-muted/50 place-self-end w-2/3 shadow backdrop-blur-lg bg-muted/50 "
+                        message.role === "user" || message.role === "system"
+                            ? "border rounded-lg py-2.5 px-2 border-muted/50 place-self-end w-2/3 shadow backdrop-blur-lg bg-muted/50 flex-col"
                             : "place-self-start w-full"
                     )}>
                     {message.role === "ai-error" ? (
