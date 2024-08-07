@@ -143,7 +143,9 @@ export function ChatMessage({
 
     const debouncedMouseMove = debounce(handleMouseMove, 50);
 
-    const handleConvertMessageToWhisper = async (messageContent: string) => {};
+    const handleConvertMessageToWhisper = async (messageContent: string) => {
+        setMessageAudioLoading(true);
+    };
 
     const handleMouseLeave = () => {
         if (audioIsInProgress) {
