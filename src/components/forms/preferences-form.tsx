@@ -6,6 +6,7 @@ import {
     CardHeader,
     CardTitle
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
     Form,
     FormControl,
@@ -38,9 +39,7 @@ import {
     AI_INTERACTIONS,
     AI_INTERACTIONS_VALUE,
     TRANSLATE_LANGUAGES,
-    type AiCharacteristics,
     type AiCharacteristicsLabel,
-    type AiInteractions,
     type AvailableViews,
     type Preferences
 } from "@/lib/types";
@@ -53,92 +52,32 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 // Define the Zod schema
+
 const preferencesSchema = z.object({
-    aiSettings: z.array(
-        z.union([
-            z.object({
-                characteristics:
-                    // z.object({
-                    // label:
-                    z.union([
-                        z.literal("simplicity"),
-                        z.literal("detail"),
-                        z.literal("clarity"),
-                        z.literal("conciseness"),
-                        z.literal("tone"),
-                        z.literal("engagement"),
-                        z.literal("creativity")
-                        // z.literal("custom")
-                    ])
-                // value:
-                // z.union([
-                //     z.literal(
-                //         "Express things as simply as possible, be kind and empathetic, be patient."
-                //     ),
-                //     z.literal(
-                //         "Provide detailed explanations and thorough insights."
-                //     ),
-                //     z.literal(
-                //         "Ensure explanations are clear and easy to understand."
-                //     ),
-                //     z.literal("Keep responses short and to the point."),
-                //     z.literal(
-                //         "Adjust the tone to be friendly, formal, or neutral based on the context."
-                //     ),
-                //     z.literal(
-                //         "Make interactions engaging and interactive."
-                //     ),
-                //     z.literal(
-                //         "Allow for creative and imaginative responses."
-                //     )
-                // z.string().min(2)
-                // ])
-            }),
-            // }),
-            z.object({
-                interactions:
-                    // z.object({
-                    //     label:
-                    z.union([
-                        z.literal("follow_up_questions"),
-                        z.literal("further_explanations"),
-                        z.literal("examples"),
-                        z.literal("none")
-                    ])
-
-                // value: z.union([
-                //     z.literal(
-                //         "Provide additional explanations and context where necessary."
-                //     ),
-                //     z.literal(
-                //         "Include examples to illustrate complex concepts."
-                //     ),
-                //     z.literal(
-                //         "Offer follow-up questions to deepen understanding."
-                //     ),
-                //     z.literal("")
-                // ])
-                // })
-            })
+    aiSettings: z.object({
+        characteristics: z.union([
+            z.literal("simplicity"),
+            z.literal("detail"),
+            z.literal("clarity"),
+            z.literal("conciseness"),
+            z.literal("tone"),
+            z.literal("engagement"),
+            z.literal("creativity")
+        ]),
+        interactions: z.union([
+            z.literal("follow_up_questions"),
+            z.literal("further_explanations"),
+            z.literal("examples"),
+            z.literal("none")
         ])
-    ),
-    applicationSettings: z.array(
-        z
-            .object({
-                translateToLanguage: z.union([
-                    z.literal("spanish"),
-                    z.literal("english")
-                ])
+    }),
+    applicationSettings: z.object({
+        translateToLanguage: z
+            .union([z.literal("spanish"), z.literal("english")])
+            .nullable(),
 
-                // translateToLanguage: z.object({
-                //     // value: z.object({
-                //     id: z.enum(["es", "en-AU"]),
-                //     language: z.enum(["spanish", "english"])
-                //     // })
-                // })
-            })
-            .nullable()
-    )
+        useWebSpeech: z.boolean()
+    })
 });
 
 const formSchema = z.object({
@@ -169,31 +108,26 @@ export const PreferencesForm = ({
 
     const { aiSettings, applicationSettings } = preferencesState;
 
+    console.log(aiSettings);
+
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             geminiApi: geminiApiKey,
             whisperApi: whisperApiKey || "",
             preferences: {
-                aiSettings: [
-                    {
-                        characteristics:
-                            (aiSettings[0] as AiCharacteristics).characteristics
-                                .label || "simplicity"
-                    },
-                    {
-                        interactions:
-                            (aiSettings[1] as AiInteractions).interactions
-                                .label || "follow_up_questions"
-                    }
-                ],
-                applicationSettings: [
-                    {
-                        translateToLanguage:
-                            applicationSettings[0]?.translateToLanguage.value
-                                .language || null
-                    }
-                ]
+                aiSettings: {
+                    characteristics:
+                        aiSettings.characteristics.label || "simplicity",
+                    interactions:
+                        aiSettings.interactions.label || "follow_up_questions"
+                },
+                applicationSettings: {
+                    translateToLanguage:
+                        applicationSettings.translateToLanguage?.value
+                            ?.language || null,
+                    useWebSpeech: applicationSettings.useWebSpeech
+                }
             }
         }
     });
@@ -311,44 +245,34 @@ export const PreferencesForm = ({
         // TODO: redo all of this... confusing and inefficient
         // update preferences
 
-        // @ts-expect-error
-        const characteristicLabel = preferences.aiSettings[0].characteristics;
+        const characteristicLabel = preferences.aiSettings.characteristics;
 
-        // @ts-expect-error
-
-        const interactionLabel = preferences.aiSettings[1].interactions;
+        const interactionLabel = preferences.aiSettings.interactions;
 
         const translateLanguageLabel =
-            preferences.applicationSettings[0].translateToLanguage;
+            preferences.applicationSettings.translateToLanguage;
 
         const newPreferences: Preferences = {
-            aiSettings: [
-                {
-                    characteristics: {
-                        label: characteristicLabel,
-                        value: AI_CHARACTERISTICS_VALUE[
-                            characteristicLabel.toUpperCase()
-                        ]
-                    }
+            aiSettings: {
+                characteristics: {
+                    label: characteristicLabel,
+                    value: AI_CHARACTERISTICS_VALUE[
+                        characteristicLabel.toUpperCase()
+                    ]
                 },
-                {
-                    interactions: {
-                        label: interactionLabel,
-                        value: AI_INTERACTIONS_VALUE[
-                            interactionLabel.toUpperCase()
-                        ]
-                    }
+                interactions: {
+                    label: interactionLabel,
+                    value: AI_INTERACTIONS_VALUE[interactionLabel.toUpperCase()]
                 }
-            ],
-            applicationSettings: [
-                {
-                    translateToLanguage: {
-                        value: TRANSLATE_LANGUAGES[
-                            translateLanguageLabel.toUpperCase()
-                        ]
-                    }
-                }
-            ]
+            },
+            applicationSettings: {
+                translateToLanguage: {
+                    value: TRANSLATE_LANGUAGES[
+                        translateLanguageLabel.toUpperCase()
+                    ]
+                },
+                useWebSpeech: preferences.applicationSettings.useWebSpeech
+            }
         };
 
         try {
@@ -378,25 +302,17 @@ export const PreferencesForm = ({
         form.setValue("geminiApi", geminiApiKey);
         form.setValue("whisperApi", whisperApiKey);
         form.setValue("preferences", {
-            aiSettings: [
-                {
-                    characteristics:
-                        (aiSettings[0] as AiCharacteristics).characteristics
-                            .label || "simplicity"
-                },
-                {
-                    interactions:
-                        (aiSettings[1] as AiInteractions).interactions.label ||
-                        "follow_up_questions"
-                }
-            ],
-            applicationSettings: [
-                {
-                    translateToLanguage:
-                        applicationSettings[0]?.translateToLanguage.value
-                            .language || null
-                }
-            ]
+            aiSettings: {
+                characteristics:
+                    aiSettings.characteristics.label || "simplicity",
+                interactions:
+                    aiSettings.interactions.label || "follow_up_questions"
+            },
+            applicationSettings: {
+                translateToLanguage:
+                    applicationSettings.translateToLanguage.value.language,
+                useWebSpeech: applicationSettings.useWebSpeech
+            }
         });
     }
 
@@ -446,7 +362,7 @@ export const PreferencesForm = ({
                             <CardContent className="space-y-8">
                                 <FormField
                                     control={form.control}
-                                    name="preferences.aiSettings.0.characteristics"
+                                    name="preferences.aiSettings.characteristics"
                                     render={({ field }) => (
                                         <FormItem>
                                             <div className="flex w-full items-center justify-between">
@@ -490,7 +406,7 @@ export const PreferencesForm = ({
 
                                 <FormField
                                     control={form.control}
-                                    name="preferences.aiSettings.1.interactions"
+                                    name="preferences.aiSettings.interactions"
                                     render={({ field }) => (
                                         <FormItem>
                                             <div className="flex w-full items-center justify-between">
@@ -554,7 +470,7 @@ export const PreferencesForm = ({
                             <CardContent className="space-y-8">
                                 <FormField
                                     control={form.control}
-                                    name="preferences.applicationSettings.0.translateToLanguage"
+                                    name="preferences.applicationSettings.translateToLanguage"
                                     render={({ field }) => (
                                         <FormItem>
                                             <div className="flex w-full items-center justify-between">
@@ -585,6 +501,35 @@ export const PreferencesForm = ({
                                                 </SelectContent>
                                             </Select>
                                             <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="preferences.applicationSettings.useWebSpeech"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow">
+                                            <FormControl>
+                                                <Checkbox
+                                                    checked={field.value}
+                                                    onCheckedChange={
+                                                        field.onChange
+                                                    }
+                                                />
+                                            </FormControl>
+                                            <div className="space-y-1 leading-none">
+                                                <FormLabel>
+                                                    Use Web Speech
+                                                </FormLabel>
+                                                <FormDescription>
+                                                    Check this if you would like
+                                                    to use Web Text-to-speech
+                                                    instead of the Whisper API.
+                                                    If you haven't added your
+                                                    whisper API the application
+                                                    will default to this.
+                                                </FormDescription>
+                                            </div>
                                         </FormItem>
                                     )}
                                 />
@@ -715,7 +660,26 @@ export const PreferencesForm = ({
                         </Button>
                         <Button type="submit" variant="default" className="">
                             {preferencesLoading || apiKeysLoading ? (
-                                <span>Loading...</span>
+                                <span className="flex gap-x-2 items-center">
+                                    <svg
+                                        className="animate-spin h-5 w-5"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24">
+                                        <circle
+                                            className="opacity-25"
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            stroke="currentColor"
+                                            strokeWidth="4"></circle>
+                                        <path
+                                            className="opacity-75"
+                                            fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Loading
+                                </span>
                             ) : (
                                 <span className="flex gap-x-2 items-center">
                                     Save

@@ -9,8 +9,6 @@ import {
 } from "@/lib/storage/indexed-db";
 import { useAppStore } from "@/lib/stores/appStore";
 import type {
-    AiCharacteristics,
-    AiInteractions,
     ChatThread,
     ContextOption,
     Message,
@@ -110,12 +108,10 @@ const Chat = ({
 }) => {
     const { setTypewriter, geminiApiKey, whisperApiKey, preferencesState } =
         useAppStore();
-    const characteristicsPreference = (
-        preferencesState.aiSettings[0] as AiCharacteristics
-    ).characteristics.value;
-    const interactionsPreference = (
-        preferencesState.aiSettings[1] as AiInteractions
-    ).interactions.value;
+    const characteristicsPreference =
+        preferencesState.aiSettings.characteristics.value;
+    const interactionsPreference =
+        preferencesState.aiSettings.interactions.value;
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
 

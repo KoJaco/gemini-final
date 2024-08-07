@@ -17,11 +17,15 @@ interface TranscriptWord {
 const WebTTS = ({
     messageId,
     text,
-    displayAudioPlayer
+    displayAudioPlayer,
+    audioInProgress,
+    setAudioInProgress
 }: {
     messageId: string;
     text: string;
     displayAudioPlayer: (value: boolean) => void;
+    audioInProgress: boolean;
+    setAudioInProgress: (value: boolean) => void;
 }) => {
     const [speaking, setSpeaking] = useState(false);
     const [sanitizedText, setSanitizedText] = useState("");
@@ -160,6 +164,15 @@ const WebTTS = ({
 
     const handlePlay = (startIdx = 0) => {
         const synth = synthRef.current;
+        if (synth.paused) {
+            synth.resume();
+            setSpeaking(true);
+        }
+
+        if (!audioInProgress) {
+            setAudioInProgress(true);
+        }
+
         const utterance = new SpeechSynthesisUtterance(
             sanitizedText.slice(startIdx)
         );
@@ -194,29 +207,76 @@ const WebTTS = ({
         utteranceRef.current = utterance;
     };
 
+    const handlePause = () => {
+        const synth = synthRef.current;
+        synth.pause();
+        setSpeaking(false);
+        // window.getSelection()?.removeAllRanges();
+    };
+
     // TODO: add handle pause
 
-    const handleStop = () => {
+    const handleCancel = () => {
         const synth = synthRef.current;
         synth.cancel();
         window.getSelection()?.removeAllRanges();
         setSpeaking(false);
+        setAudioInProgress(false);
     };
 
     const handleSkipForward = () => {
-        handleStop();
-        handlePlay(currentCharIndex + 25);
+        const synth = synthRef.current;
+        synth.cancel();
+        window.getSelection()?.removeAllRanges();
+        // setSpeaking(false);
+        handlePlay(currentCharIndex + 50);
     };
 
     const handleSkipBackward = () => {
-        handleStop();
-        handlePlay(Math.max(currentCharIndex - 25, 0));
+        const synth = synthRef.current;
+        synth.cancel();
+        window.getSelection()?.removeAllRanges();
+        // setSpeaking(false);
+        handlePlay(Math.max(currentCharIndex - 50, 0));
+    };
+
+    // TODO: this is going to be hard to do... need to reference the parent markdown component and work out positioning of click...
+    const handleTextClick = (event: React.MouseEvent<HTMLDivElement>) => {
+        const textContainer = event.currentTarget;
+        const range = document.createRange();
+        const selection = window.getSelection();
+
+        selection?.removeAllRanges();
+
+        let offset = 0;
+        const clickPos = event.clientY;
+        textContainer.childNodes.forEach((node) => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const element = node as Element;
+                const rect = element.getBoundingClientRect();
+                if (rect.top <= clickPos && rect.bottom >= clickPos) {
+                    offset = clickPos - rect.top;
+                    range.setStart(node, offset);
+                    selection?.addRange(range);
+                    const charIndex =
+                        Array.from(textContainer.childNodes).reduce(
+                            (acc, n) =>
+                                n === node
+                                    ? acc
+                                    : acc + (n.textContent?.length || 0),
+                            0
+                        ) + offset;
+                    handlePlay(charIndex);
+                }
+            }
+        });
     };
 
     return (
         <>
             <div className="bg-background/50 backdrop-blur-lg border rounded-[50px] overflow-hidden ">
-                <div className={clsx("px-1", speaking ? "pt-4" : "py-1")}>
+                <div
+                    className={clsx("px-1", audioInProgress ? "pt-4" : "py-1")}>
                     <Button
                         type="button"
                         size="icon"
@@ -232,7 +292,7 @@ const WebTTS = ({
                 </div>
                 <div
                     className={clsx(
-                        speaking
+                        audioInProgress
                             ? "flex h-auto opacity-100 pb-4 px-1 flex-col gap-y-2 items-center justify-center "
                             : "h-0 opacity-0 hidden",
                         "transition-all duration-300"
@@ -241,7 +301,7 @@ const WebTTS = ({
                         type="button"
                         size="icon"
                         variant="ghost"
-                        onClick={handleStop}
+                        onClick={handlePause}
                         className="rounded-lg p-1"
                         disabled={!speaking}>
                         <Pause className="w-4 h-4" />
@@ -265,15 +325,14 @@ const WebTTS = ({
                         <Forward className="w-4 h-4 rotate-180" />
                     </Button>
                 </div>
-                {speaking && (
+                {audioInProgress && (
                     <div className="w-full flex items-center justify-center border-t hover:bg-background transition-colors duration-300">
                         <Button
                             type="button"
                             size="icon"
                             variant="ghost"
                             className="rounded-0 p-1 hover:bg-transparent"
-                            // onClick={() => displayAudioPlayer(false)}
-                        >
+                            onClick={handleCancel}>
                             <X className="w-4 h-4 rotate-180" />
                         </Button>
                     </div>

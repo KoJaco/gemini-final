@@ -45,12 +45,17 @@ export function ChatMessage({
     speed = 10,
     ...props
 }: ChatMessageProps) {
+    // global state
+    const { whisperApiKey } = useAppStore();
+
+    // local State
     const [displayedText, setDisplayedText] = useState("");
     const [currentIndex, setCurrentIndex] = useState(0);
     const [audioPlayerTopPosition, setAudioPlayerTopPosition] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
     const [displayAudio, setDisplayAudio] = useState(false);
-    const [audioIsPlaying, setAudioIsPlaying] = useState(false);
+    const [audioIsInProgress, setAudioIsInProgress] = useState(false);
+    const [messageAudioLoading, setMessageAudioLoading] = useState(false);
 
     const [currentAudio, setCurrentAudio] = useState<PlayerAPI | null>(null);
     const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -58,7 +63,9 @@ export function ChatMessage({
     const messageContainerRef = useRef<HTMLDivElement | null>(null);
     const ttsRef = useRef<HTMLDivElement | null>(null);
 
-    const { typewriter, setTypewriter } = useAppStore();
+    const { typewriter, setTypewriter, preferencesState } = useAppStore();
+
+    const { useWebSpeech } = preferencesState.applicationSettings;
 
     useEffect(() => {
         if (typewriter) {
@@ -136,241 +143,206 @@ export function ChatMessage({
 
     const debouncedMouseMove = debounce(handleMouseMove, 50);
 
+    const handleConvertMessageToWhisper = async (messageContent: string) => {};
+
+    const handleMouseLeave = () => {
+        if (audioIsInProgress) {
+            return;
+        } else {
+            setDisplayAudio(false);
+        }
+    };
+    // TODO: Edge case, should not be able to play two WebTTS components at the same time... results in buggy behaviour.
+
     // TODO: Adjust system message styling..
 
+    // TODO: add automatic scroll to when audio is playing... should following transcript.
+
     return (
-        <AudioProvider>
-            <div
-                id={`message-container-${message.id}`}
-                ref={messageContainerRef}
-                className={cn(
-                    "group w-full mb-10 items-start h-auto relative flex flex-col overflow-x-hidden transition-all duration-300"
-                )}
-                onMouseEnter={() => setDisplayAudio(true)}
-                onMouseLeave={() => setDisplayAudio(false)}
-                onMouseMove={debouncedMouseMove}
-                // onMouseMove={handleMouseMove}
-                style={{ overflow: "visible" }}
-                {...props}>
-                <div className="flex justify-between w-full items-center">
-                    <div
-                        className={clsx(
-                            "flex w-full mb-2",
-                            message.role === "user" || message.role === "system"
-                                ? "justify-end"
-                                : "justify-start"
-                        )}>
-                        {message.role === "user" && (
-                            <IconUser className="w-4 h-4" />
-                        )}
-                        {message.role === "assistant" && (
-                            <IconGemini className="w-4 h-4 text-red-500" />
-                        )}
-                        {message.role === "system" && (
-                            <MonitorCog className="w-4 h-4 text-orange-500" />
-                        )}
-                    </div>
-                    {/* <div
-                        className={clsx(
-                            "flex",
-                            message.role === "user" || message.role === "system"
-                                ? "flex-start"
-                                : "flex-end"
-                        )}>
-                        <Button
-                            size="icon"
-                            variant="secondary"
-                            className={clsx(
-                                "transition-transform duration-300 mb-2",
-                                isHovered ? "opacity-100" : "opacity-0"
-                            )}
-                            onClick={() => {
-                                setDisplayAudio(!displayAudio);
-                            }}>
-                            <AudioLines className="w-4 h-4" />
-                        </Button>
-                    </div> */}
-                </div>
+        // <AudioProvider>
+        <div
+            id={`message-container-${message.id}`}
+            ref={messageContainerRef}
+            className={cn(
+                "group w-full mb-10 items-start h-auto relative flex flex-col overflow-x-hidden transition-all duration-300"
+            )}
+            onMouseEnter={() => setDisplayAudio(true)}
+            onMouseLeave={handleMouseLeave}
+            onMouseMove={debouncedMouseMove}
+            // onMouseMove={handleMouseMove}
+            style={{ overflow: "visible" }}
+            {...props}>
+            <div className="flex justify-between w-full items-center gap-x-4">
                 <div
-                    className={cn(
-                        "flex size-8 h-auto items-center text-left transition-colors duration-300",
+                    className={clsx(
+                        "flex w-full mb-2",
                         message.role === "user" || message.role === "system"
-                            ? "border rounded-lg py-2.5 px-2 border-muted/50 place-self-end w-2/3 shadow backdrop-blur-lg bg-muted/50 flex-col"
-                            : "place-self-start w-full"
+                            ? "justify-end"
+                            : "justify-start"
                     )}>
-                    {message.role === "ai-error" ? (
-                        <Card className="border-destructive-foreground/20 border bg-destructive/50 rounded-lg prose dark:prose-invert prose-p:leading-relaxed w-full h-auto overflow-hidden flex">
-                            <CardContent className="space-y-4 w-full text-wrap flex-wrap">
-                                <CardTitle className="text-sm">
-                                    Generative AI Error
-                                </CardTitle>
-                                <CardDescription className="w-full text-wrap truncate flex flex-wrap whitespace-normal break-all">
-                                    {displayedText}
-                                </CardDescription>
-                            </CardContent>
-                        </Card>
-                    ) : (
-                        <ErrorBoundary
-                            fallback={
-                                <Card className="border-destructive-foreground/20 border bg-destructive/50 rounded-lg prose dark:prose-invert prose-p:leading-relaxed">
-                                    <CardContent className="space-y-4">
-                                        <CardTitle className="text-sm">
-                                            Uh oh! Something went wrong.
-                                        </CardTitle>
-                                        <CardDescription>
-                                            There is a known bug in parsing
-                                            markdown-formatted code. This will
-                                            be fixed asap.
-                                        </CardDescription>
-                                    </CardContent>
-                                </Card>
-                            }>
-                            <div
-                                id={`text-content-${message.id}`}
-                                className="h-full w-full prose dark:prose-invert break-words prose-p:leading-relaxed prose-pre:p-0 text-wrap whitespace-normal markdown prose-p:last:mb-0 prose-p:mb-2">
-                                <MemoizedReactMarkdown
-                                    remarkPlugins={[remarkGfm, remarkMath]}
-                                    components={{
-                                        p({ children }) {
-                                            return (
-                                                <p
-                                                    id="text-content"
-                                                    className="mb-2 last:mb-0">
-                                                    {children}
-                                                </p>
-                                            );
-                                        }
-                                        // code({
-                                        //     node,
-                                        //     inline,
-                                        //     className,
-                                        //     children,
-                                        //     ...props
-                                        // }) {
-                                        //     if (children.length) {
-                                        //         if (children[0] == "▍") {
-                                        //             return (
-                                        //                 <span className="mt-1 cursor-default animate-pulse">
-                                        //                     ▍
-                                        //                 </span>
-                                        //             );
-                                        //         }
-
-                                        //         children[0] = (
-                                        //             children[0] as string
-                                        //         ).replace("`▍`", "▍");
-                                        //     }
-
-                                        //     const match = /language-(\w+)/.exec(
-                                        //         className || ""
-                                        //     );
-
-                                        //     if (inline) {
-                                        //         return (
-                                        //             <code
-                                        //                 className={className}
-                                        //                 {...props}>
-                                        //                 {children}
-                                        //             </code>
-                                        //         );
-                                        //     }
-
-                                        //     return (
-                                        //         <CodeBlock
-                                        //             key={Math.random()}
-                                        //             language={
-                                        //                 (match && match[1]) ||
-                                        //                 ""
-                                        //             }
-                                        //             value={String(
-                                        //                 children
-                                        //             ).replace(/\n$/, "")}
-                                        //             {...props}
-                                        //         />
-                                        //     );
-                                        // }
-                                    }}>
-                                    {displayedText}
-                                </MemoizedReactMarkdown>
-                            </div>
-                        </ErrorBoundary>
+                    {message.role === "user" && (
+                        <IconUser className="w-4 h-4" />
+                    )}
+                    {message.role === "assistant" && (
+                        <IconGemini className="w-4 h-4 text-red-500" />
+                    )}
+                    {message.role === "system" && (
+                        <MonitorCog className="w-4 h-4 text-orange-500" />
                     )}
                 </div>
 
-                {displayAudio && (
-                    <>
-                        {createPortal(
-                            <div
-                                ref={ttsRef}
-                                className={clsx(
-                                    "absolute right-0 z-[1000] transition-all duration-300 ease-in-out",
-                                    displayAudio ? "opacity-100" : "opacity-0"
-                                )}
-                                style={{
-                                    top: audioPlayerTopPosition,
-                                    transform: "translateY(-10%)"
-                                }}>
-                                <WebTTS
-                                    messageId={message.id}
-                                    text={displayedText}
-                                    displayAudioPlayer={setDisplayAudio}
-                                />
-                            </div>,
-                            document.getElementById(
-                                `message-container-${message.id}`
-                            )
-                        )}
-                    </>
-                )}
-
-                {/* Audio player component should appear on hover underneath cursor (like a context menu) */}
-
-                {/* <div
+                <Button
+                    size="icon"
+                    variant="ghost"
+                    title="Convert message to audio with Whisper"
                     className={clsx(
-                        "transition-opacity duration-300 flex w-full mt-2",
-                        isHovered
-                        ? "opacity-100 pointer-events-auto"
-                            : "opacity-0 pointer-events-none"
-                    )}>
-                    {currentAudio ? (
-                        <>
-                            <Button
-                                type="button"
-                                onClick={() => currentAudio.toggle()}>
-                                {currentAudio.playing ? playing : paused}
-                            </Button>
-                            <AudioPlayer audioBlob={audioBlob} />
-                        </>
-                    ) : (
-                        <Button
-                            size="icon"
-                            variant="default"
-                            className={clsx(
-                                "flex gap-x-2 rounded-full h-8 w-8",
-                                message.role === "user" ? "ml-auto" : "ml-0"
-                            )}
-                            onClick={() => handleTextToSpeech(displayedText)}>
-                            <AudioLines />
-                        </Button>
+                        "transition-transform hover:scale-105 duration-300 mb-2",
+                        !useWebSpeech ? "opacity-100" : "opacity-0"
                     )}
-                </div> */}
+                    disabled={!whisperApiKey}
+                    onClick={() => {
+                        handleConvertMessageToWhisper(displayedText);
+                    }}>
+                    <AudioLines className="w-4 h-4" />
+                </Button>
             </div>
-        </AudioProvider>
+            <div
+                className={cn(
+                    "flex size-8 h-auto items-center text-left transition-colors duration-300",
+                    message.role === "user" || message.role === "system"
+                        ? "border rounded-lg py-2.5 px-2 border-muted/50 place-self-end w-2/3 shadow backdrop-blur-lg bg-muted/50 flex-col"
+                        : "place-self-start w-full"
+                )}>
+                {message.role === "ai-error" ? (
+                    <Card className="border-destructive-foreground/20 border bg-destructive/50 rounded-lg prose dark:prose-invert prose-p:leading-relaxed w-full h-auto overflow-hidden flex">
+                        <CardContent className="space-y-4 w-full text-wrap flex-wrap">
+                            <CardTitle className="text-sm">
+                                Generative AI Error
+                            </CardTitle>
+                            <CardDescription className="w-full text-wrap truncate flex flex-wrap whitespace-normal break-all">
+                                {displayedText}
+                            </CardDescription>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <ErrorBoundary
+                        fallback={
+                            <Card className="border-destructive-foreground/20 border bg-destructive/50 rounded-lg prose dark:prose-invert prose-p:leading-relaxed">
+                                <CardContent className="space-y-4">
+                                    <CardTitle className="text-sm">
+                                        Uh oh! Something went wrong.
+                                    </CardTitle>
+                                    <CardDescription>
+                                        There is a known bug in parsing
+                                        markdown-formatted code. This will be
+                                        fixed asap.
+                                    </CardDescription>
+                                </CardContent>
+                            </Card>
+                        }>
+                        <div
+                            id={`text-content-${message.id}`}
+                            className="h-full w-full prose dark:prose-invert break-words prose-p:leading-relaxed prose-pre:p-0 text-wrap whitespace-normal markdown prose-p:last:mb-0 prose-p:mb-2">
+                            <MemoizedReactMarkdown
+                                remarkPlugins={[remarkGfm, remarkMath]}
+                                components={{
+                                    p({ children }) {
+                                        return (
+                                            <p
+                                                id="text-content"
+                                                className="mb-2 last:mb-0">
+                                                {children}
+                                            </p>
+                                        );
+                                    }
+                                    // code({
+                                    //     node,
+                                    //     inline,
+                                    //     className,
+                                    //     children,
+                                    //     ...props
+                                    // }) {
+                                    //     if (children.length) {
+                                    //         if (children[0] == "▍") {
+                                    //             return (
+                                    //                 <span className="mt-1 cursor-default animate-pulse">
+                                    //                     ▍
+                                    //                 </span>
+                                    //             );
+                                    //         }
+
+                                    //         children[0] = (
+                                    //             children[0] as string
+                                    //         ).replace("`▍`", "▍");
+                                    //     }
+
+                                    //     const match = /language-(\w+)/.exec(
+                                    //         className || ""
+                                    //     );
+
+                                    //     if (inline) {
+                                    //         return (
+                                    //             <code
+                                    //                 className={className}
+                                    //                 {...props}>
+                                    //                 {children}
+                                    //             </code>
+                                    //         );
+                                    //     }
+
+                                    //     return (
+                                    //         <CodeBlock
+                                    //             key={Math.random()}
+                                    //             language={
+                                    //                 (match && match[1]) ||
+                                    //                 ""
+                                    //             }
+                                    //             value={String(
+                                    //                 children
+                                    //             ).replace(/\n$/, "")}
+                                    //             {...props}
+                                    //         />
+                                    //     );
+                                    // }
+                                }}>
+                                {displayedText}
+                            </MemoizedReactMarkdown>
+                        </div>
+                    </ErrorBoundary>
+                )}
+            </div>
+
+            {useWebSpeech && displayAudio && (
+                <>
+                    {createPortal(
+                        <div
+                            ref={ttsRef}
+                            className={clsx(
+                                "absolute right-0 z-[1000] transition-all duration-300 ease-in-out",
+                                displayAudio ? "opacity-100" : "opacity-0"
+                            )}
+                            style={{
+                                top: audioPlayerTopPosition,
+                                transform: "translateY(-10%)"
+                            }}>
+                            <WebTTS
+                                messageId={message.id}
+                                text={displayedText}
+                                audioInProgress={audioIsInProgress}
+                                setAudioInProgress={setAudioIsInProgress}
+                                displayAudioPlayer={setDisplayAudio}
+                            />
+                        </div>,
+                        document.getElementById(
+                            `message-container-${message.id}`
+                        )
+                    )}
+                </>
+            )}
+        </div>
+        // </AudioProvider>
     );
 }
-
-// Memoized ReactMarkdown component with wrapped words
-// const MemoizedReactMarkdown: FC<Options> = memo(
-//     ({ children, ...props }) => {
-//         const wrappedText = wrapWordsInSpan(children);
-//         const text = wrappedText.join(" ");
-
-//         return <ReactMarkdown {...props}>{text}</ReactMarkdown>;
-//     },
-//     (prevProps, nextProps) =>
-//         prevProps.children === nextProps.children &&
-//         prevProps.className === nextProps.className
-// );
 
 const MemoizedReactMarkdown: FC<Options> = memo(
     ReactMarkdown,

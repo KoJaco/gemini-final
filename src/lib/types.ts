@@ -74,19 +74,7 @@ export const TRANSLATE_LANGUAGES = {
 export type TranslateLanguage =
     (typeof TRANSLATE_LANGUAGES)[keyof typeof TRANSLATE_LANGUAGES];
 
-export type AiCharacteristics = {
-    characteristics: {
-        label: AiCharacteristicsLabel;
-        value: AIiCharacteristicsValue;
-    };
-};
-
-export type AiInteractions = {
-    interactions: {
-        label: AiInteractionsLabel;
-        value: AiInteractionsValue;
-    };
-};
+// TODO: fix this typing, it doesn't make sense (large refactor of preferences needed)
 
 export type ApplicationSettings = {
     translateToLanguage: {
@@ -95,8 +83,22 @@ export type ApplicationSettings = {
 };
 
 export interface Preferences {
-    aiSettings: (AiCharacteristics | AiInteractions)[];
-    applicationSettings: ApplicationSettings[];
+    aiSettings: {
+        characteristics: {
+            label: AiCharacteristicsLabel;
+            value: AIiCharacteristicsValue;
+        };
+        interactions: {
+            label: AiInteractionsLabel;
+            value: AiInteractionsValue;
+        };
+    };
+    applicationSettings: {
+        translateToLanguage: {
+            value: TranslateLanguage;
+        } | null;
+        useWebSpeech: boolean;
+    };
 }
 
 export type HelpfulQuestion = {
