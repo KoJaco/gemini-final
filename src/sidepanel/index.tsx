@@ -109,7 +109,6 @@ const Sidepanel = () => {
 
                     if (res.success) {
                         setCurrentChatThread(newThread);
-                        console.log("Successfully created new thread");
                     } else {
                         console.log(res.message);
                     }
@@ -144,64 +143,6 @@ const Sidepanel = () => {
         setCurrentChatThread
     ]);
 
-    // useEffect(() => {
-    //     const fetchApiKey = async () => {
-    //         const response = await getApiKey("googleGeminiApiKey");
-
-    //         if (response.success && response.data) {
-    //             setGeminiApiKey(response.data);
-    //         } else {
-    //             // handle this accordingly, user cannot interact with application... push them to form
-    //             console.log(response.error);
-    //         }
-
-    //         setLoading(false);
-    //     };
-
-    //     fetchApiKey();
-    // }, []);
-
-    // useEffect(() => {});
-
-    // useEffect(() => {
-    //     async function fetchOrCreateLatestThread() {
-    //         const latestThread = await getLatestThread();
-
-    //         if (latestThread !== undefined) {
-    //             setCurrentChatThread(latestThread);
-    //         } else {
-    //             const id = nanoid();
-
-    //             const newThread: ChatThread = {
-    //                 threadId: id,
-    //                 messages: [
-    //                     {
-    //                         role: "assistant",
-    //                         content:
-    //                             "Hey! I'm your personal AI assistant trying to make the web a more accessible place for all. Ask me anything!",
-    //                         id: `msg-open`,
-    //                         createdAt: new Date().toISOString(),
-    //                         threadId: id
-    //                     }
-    //                 ],
-    //                 createdAt: new Date().toISOString(),
-    //                 updatedAt: new Date().toISOString()
-    //             };
-    //             const res = await createNewChatThread(newThread);
-
-    //             // TODO: Something is going wrong with the res....
-    //             if (res.success) {
-    //                 setCurrentChatThread(newThread);
-    //                 console.log("Successfully created new thread");
-    //             } else {
-    //                 console.log(res.message);
-    //             }
-    //         }
-    //     }
-
-    //     fetchOrCreateLatestThread();
-    // }, []);
-
     function renderCurrentView() {
         switch (currentView) {
             case "main":
@@ -228,18 +169,7 @@ const Sidepanel = () => {
 
             case "preferences":
                 return <PreferencesView setOpenView={setCurrentView} />;
-            case "read-mode":
-                return (
-                    <MainView
-                        currentChatThread={currentChatThread}
-                        setCurrentChatThread={setCurrentChatThread}
-                        isAtBottom={isAtBottom}
-                        scrollToBottom={scrollToBottom}
-                        messagesRef={messagesRef}
-                        scrollRef={scrollRef}
-                        visibilityRef={visibilityRef}
-                    />
-                );
+
             default:
                 return (
                     <MainView
@@ -286,18 +216,32 @@ const Sidepanel = () => {
                         />
                     </div>
                 ) : (
-                    <div className="p-4">
-                        {/* this should be a loading skeleton for the app as a whole. */}
+                    <div className="p-4 h-full">
                         {apiKeysLoading ? (
-                            <Card className="w-full h-auto shadow-lg flex flex-col gap-y-8 p-6">
-                                <Skeleton className="w-full h-16 rounded-md" />
+                            <div className="h-full shadow-lg flex flex-col gap-y-8 justify-between overflow-hidden">
+                                <Skeleton className="w-1/2 h-10 rounded-md" />
                                 <div className="flex flex-col space-y-2 w-full">
                                     <Skeleton className="w-20 h-8 rounded-md" />
-                                    <Skeleton className="w-full h-8 rounded-md" />
-                                    <Skeleton className="w-full h-16 rounded-md" />
+
+                                    <Skeleton className="w-full h-20 rounded-md" />
                                 </div>
-                                <Skeleton className="w-32 h-8 rounded-md" />
-                            </Card>
+                                <div className="mt-auto flex">
+                                    <div className="flex flex-col gap-y-4">
+                                        <div className="flex gap-x-2">
+                                            <Skeleton className="rounded-full w-8 h-8" />
+                                            <Skeleton className="rounded-full w-8 h-8" />
+                                        </div>
+                                        <div className="max-w-max flex w-full gap-x-4">
+                                            <Skeleton className="h-20 w-[200px]" />
+                                            <Skeleton className="h-20 w-[200px]" />
+                                        </div>
+                                        <Skeleton className="h-32 w-full" />
+                                        <div className="border-t border-muted pt-4">
+                                            <Skeleton className="h-10 w-full" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         ) : (
                             <Card className="shadow-lg w-full h-auto">
                                 <CardHeader className="mb-4">

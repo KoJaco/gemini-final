@@ -71,15 +71,13 @@ export const ThreadsView = ({
 
     async function handleRemoveThread(threadId: string) {
         const res = await removeThread(threadId);
-        console.log("hit");
 
         if (res.success) {
             setThreads((prev) =>
                 prev.filter((thread) => thread.threadId !== threadId)
             );
-            console.log(res.message);
         } else {
-            console.error(res.message);
+            console.warn(res.message);
         }
     }
 
@@ -87,11 +85,10 @@ export const ThreadsView = ({
         const res = await setLatestChatThread(thread.threadId);
 
         if (res.success) {
-            // console.log(res.message)
             setCurrentThread(thread);
             setOpenView("main");
         } else {
-            console.log(res.message);
+            console.warn(res.message);
         }
     }
 

@@ -50,8 +50,20 @@ export function MainView({
                                 )}
 
                             {responseLoading && (
-                                <div className="h-96 w-full flex flex-col">
-                                    <Skeleton className="w-full h-10" />
+                                <div className="h-96 w-full flex flex-col gap-y-4">
+                                    <Skeleton className="w-3/4 h-10" />
+
+                                    <Skeleton className="w-full h-32" />
+
+                                    <div className="flex">
+                                        <div className="flex flex-col items-center justify-between py-4">
+                                            <Skeleton className="h-3 w-3 rounded-full" />
+                                            <Skeleton className="h-3 w-3 rounded-full" />
+                                            <Skeleton className="h-3 w-3 rounded-full" />
+                                        </div>
+
+                                        <Skeleton className="ml-4 w-full h-32" />
+                                    </div>
                                 </div>
                             )}
                             <ButtonScrollToBottom

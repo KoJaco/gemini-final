@@ -87,8 +87,6 @@ export function ApiEntryForm({
             const text = response.text();
 
             if (text) {
-                console.log(text);
-
                 const res = await storeGeminiApiKey(geminiApiKey);
 
                 if (res.success) {

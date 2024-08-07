@@ -26,8 +26,6 @@ const SidepanelFooter = ({
     const [hoverMode, setHoverMode] = useState<boolean>(false);
 
     async function handleToggleHoverMode() {
-        console.log("sending toggle hover mode command");
-
         // TODO: Extrapolate response return types out into appropriate types (success only, success with message, success with data)
         const response: { success: boolean } = await chrome.runtime.sendMessage(
             {
@@ -36,34 +34,12 @@ const SidepanelFooter = ({
             }
         );
 
-        console.log(response);
-
         if (response?.success) {
             setHoverMode(!hoverMode);
-            console.log("Successfully toggled hover mode");
         } else {
-            console.log("Error!");
+            console.warn("Error toggling hover mode.");
         }
-
-        // console.log("sending toggle hover mode command");
-
-        // const response = await sendToBackground({
-        //     name: "ping",
-        //     body: "Hello ping"
-        // });
-
-        // console.log(response);
     }
-
-    const activateHoverMode = () => {
-        console.log("activate hit");
-        chrome.runtime.sendMessage({ action: "activateHoverMode" });
-    };
-
-    const deactivateHoverMode = () => {
-        console.log("deactivate hit");
-        chrome.runtime.sendMessage({ action: "deactivateHoverMode" });
-    };
 
     async function determineButtonFunction(
         identifier: "new-chat" | "all-threads" | "hover-mode" | "preferences"
@@ -85,7 +61,7 @@ const SidepanelFooter = ({
                 setCurrentView(identifier);
                 break;
             default:
-                console.log(`Identifier '${identifier}' was incorrect.`);
+                console.warn(`Identifier '${identifier}' was incorrect.`);
         }
     }
 
@@ -108,14 +84,12 @@ const SidepanelFooter = ({
             updatedAt: new Date().toISOString()
         };
         const res = await createNewChatThread(newThread);
-        console.log(res);
 
         // TODO: Something is going wrong with the res
         if (res.success) {
             setCurrentChatThread(newThread);
-            console.log("Hit");
         } else {
-            console.log(`Error of status: ${res.status}: `, res.message);
+            console.error(`Error of status: ${res.status}: `, res.message);
         }
     }
 

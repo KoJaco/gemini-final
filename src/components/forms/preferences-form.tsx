@@ -217,8 +217,6 @@ export const PreferencesForm = ({
                     const text = response.text();
 
                     if (text) {
-                        // console.log(text);
-
                         const res = await storeGeminiApiKey(geminiApi);
 
                         if (res.success) {
@@ -277,8 +275,6 @@ export const PreferencesForm = ({
                         }
                     );
 
-                    console.log(response);
-
                     if (!response.ok) {
                         setError({
                             display: true,
@@ -324,10 +320,6 @@ export const PreferencesForm = ({
 
         const translateLanguageLabel =
             preferences.applicationSettings[0].translateToLanguage;
-
-        // console.log(characteristicLabel);
-        // console.log(interactionLabel);
-        // console.log(translateLanguageLabel);
 
         const newPreferences: Preferences = {
             aiSettings: [
@@ -380,8 +372,6 @@ export const PreferencesForm = ({
             setPreferencesLoading(false);
             setView("main");
         }
-
-        // console.log(newPreferences);
     }
 
     function handleResetForm() {
@@ -409,10 +399,6 @@ export const PreferencesForm = ({
             ]
         });
     }
-
-    // function handleSave() {
-    //     console.log("hit");
-    // }
 
     async function handleRemoveApiKey(
         name: "googleGeminiApiKey" | "whisperApiKey"

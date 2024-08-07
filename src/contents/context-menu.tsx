@@ -139,7 +139,6 @@ const ContextMenu = () => {
                     reader.onloadend = () => {
                         const base64String = reader.result as string;
 
-                        console.log(base64String);
                         const base64Data = base64String.split(",")[1];
 
                         // Remove the data URL prefix ... need to find out the format that gemini expects... no docs???
@@ -168,8 +167,6 @@ const ContextMenu = () => {
             inlineData: null,
             elementType: element.tagName
         };
-
-        console.log(element);
 
         if (element.tagName === "IMG") {
             const src = element.getAttribute("src");
@@ -213,7 +210,6 @@ const ContextMenu = () => {
         const messageListener = (message, sender, sendResponse) => {
             // content menu specific
             if (message.action === "TOGGLE_HOVER_MODE") {
-                console.log(message.payload);
                 handleToggleHoverMode(message.payload);
                 // setHoverMode(message.payload);
 
@@ -224,7 +220,7 @@ const ContextMenu = () => {
                 // Full page data
             } else if (message.action === "GET_PAGE_TEXT_CONTENT") {
                 const data = getPageTextContent();
-                console.log(data);
+
                 sendResponse({ success: true, content: data });
                 // send to BGSW and parse into a prompt for Gemini
             } else {
@@ -256,8 +252,6 @@ const ContextMenu = () => {
 
         const handleMouseMove = (event: MouseEvent) => {
             const { clientX, clientY } = event;
-
-            // console.log(menuRef.current);
 
             if (highlightedElementRef.current) {
                 highlightedElementRef.current.style.border = "";
@@ -338,7 +332,6 @@ const ContextMenu = () => {
                     setIsVisible(true);
                     handleSetIsOverMenu(true);
                     console.log(highlightedElementRef.current?.tagName);
-                    // console.log({ isOverMenu: isOverMenu });
                 }, 1000);
             }
         };

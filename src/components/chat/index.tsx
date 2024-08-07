@@ -9,6 +9,8 @@ import {
 } from "@/lib/storage/indexed-db";
 import { useAppStore } from "@/lib/stores/appStore";
 import type {
+    AiCharacteristics,
+    AiInteractions,
     ChatThread,
     ContextOption,
     Message,
@@ -66,15 +68,15 @@ export const menuOptionToPrompt: Record<
     },
     "Describe and Translate": {
         action: "Describing and translating selected image.",
-        prompt: "Describe the following image and return your response in:"
+        prompt: "Describe the following image and return your response in"
     },
     Summarize: {
         action: "Summarizing content.",
-        prompt: "Summarize the content of the following element. If you cannot find a reasonable solution for simplification, state why you cannot simplify it. Here is the element to summarize:"
+        prompt: "Your job is to summarize text content. Here is the text content to summarize:"
     },
     Simplify: {
         action: "Simplifying content.",
-        prompt: "Simplify the content of the following element:"
+        prompt: "Your job is to simplify text content. If you cannot find a reasonable solution for simplification, state why you cannot simplify it. Here is the content to be simplified:"
     },
     Explain: {
         action: "Explaining content.",
@@ -106,7 +108,14 @@ const Chat = ({
     setThread: (thread: ChatThread) => void;
     setResponseLoading: (value: boolean) => void;
 }) => {
-    const { setTypewriter, geminiApiKey } = useAppStore();
+    const { setTypewriter, geminiApiKey, whisperApiKey, preferencesState } =
+        useAppStore();
+    const characteristicsPreference = (
+        preferencesState.aiSettings[0] as AiCharacteristics
+    ).characteristics.value;
+    const interactionsPreference = (
+        preferencesState.aiSettings[1] as AiInteractions
+    ).interactions.value;
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
 
@@ -128,7 +137,6 @@ const Chat = ({
                 | "TOGGLE_HOVER_MODE";
             payload?: any;
         }) => {
-            console.log(message);
             if (message.action === "MENU_OPTION_CLICKED") {
                 const { title, content, inlineData, elementType } =
                     message.payload;
@@ -179,15 +187,18 @@ const Chat = ({
         inlineData: null | { data: string; mimeType: string };
         elementType: string;
     }) => {
-        let prompt: string = "";
+        let prompt: string;
 
         // TODO: grab from preferences object
-        const languagePreference = "Spanish";
+        const languagePreference =
+            preferencesState.applicationSettings[0].translateToLanguage.value
+                .language;
+
         const systemMessage = menuOptionToPrompt[title].action;
 
         if (elementType === "IMG") {
             if (!inlineData) {
-                console.log("No inline data supplied for image.");
+                console.warn("No inline data supplied for image.");
             }
             switch (title) {
                 case "Describe":
@@ -198,7 +209,7 @@ const Chat = ({
                     prompt = `${menuOptionToPrompt[title].prompt}`;
                     break;
                 case "Describe and Translate":
-                    prompt = `You are a translator who can translate many languages into ${languagePreference}. ${menuOptionToPrompt[title].prompt}`;
+                    prompt = `You are a translator who can translate many languages into ${languagePreference}. ${menuOptionToPrompt[title].prompt} ${languagePreference}`;
                     break;
                 default:
                     prompt = `${menuOptionToPrompt[title].prompt}`;
@@ -206,10 +217,25 @@ const Chat = ({
             }
         }
         if (title === "Translate" || title === "Summarize and Translate") {
-            prompt = `You are a translator who can translate many languages into ${languagePreference}. ${menuOptionToPrompt[title].prompt} to ${languagePreference}: ${content}`;
+            prompt = `You are a translator who can translate many languages into ${languagePreference}. ${menuOptionToPrompt[title].prompt} to ${languagePreference}: "${content}"`;
+        } else if (title === "Simplify") {
+            prompt = `${menuOptionToPrompt[title].prompt} "${content}"\n\nYou should respond with a simplified version of the text content, however, please also ${interactionsPreference}`;
+        } else if (title === "Summarize") {
+            prompt = `${menuOptionToPrompt[title].prompt} "${content}"\n\nYou must respond with a summary of the text content, however, please also ${interactionsPreference}`;
+        } else if (title === "Explain") {
+            prompt = `${menuOptionToPrompt[title].prompt} "${content}"\n\nYou must respond with an explanation of the text content, however, please also ${interactionsPreference}`;
         } else {
-            prompt = `${menuOptionToPrompt[title].prompt} ${content}`;
+            prompt = `${menuOptionToPrompt[title].prompt} "${content}"`;
         }
+
+        prompt =
+            `You are the reply with the following characteristics: ${characteristicsPreference}` +
+            " " +
+            prompt;
+
+        console.log(prompt);
+
+        // return;
 
         // TODO: Should there be a user message? Or simply a gemini message based on a command?
 
@@ -232,7 +258,6 @@ const Chat = ({
             updateThread(thread.threadId, newUserMessage).then((resultSet) => {
                 if (resultSet.success) {
                     setThread(updatedThread);
-                    console.log(resultSet.message);
                 } else {
                     console.error(resultSet.message);
                 }
@@ -251,7 +276,6 @@ const Chat = ({
                         data: inlineData.data
                     }
                 };
-                console.log(imagePart);
                 aiResponse = await fetchTextDataFromTextAndImage(
                     prompt,
                     imagePart
@@ -308,8 +332,6 @@ const Chat = ({
 
                 updateThread(thread.threadId, newGeminiMessage).then(
                     (resultSet) => {
-                        console.log(resultSet);
-
                         if (resultSet.success) {
                             setThread(newThread);
                         } else {
@@ -318,8 +340,6 @@ const Chat = ({
                         }
                     }
                 );
-
-                console.log("Could not generate AI response");
             }
         } catch (error) {
             console.error("ERROR when handling context option: ", error);
@@ -383,7 +403,6 @@ const Chat = ({
         currentSummary: string,
         lastAIMessage: string
     ): Promise<void> {
-        console.log("hit");
         // Combine the current summary with the last AI message
         const summaryContent = `Current summary:\n${currentSummary}\n\nLast message:\n${lastAIMessage}`;
 
@@ -401,14 +420,13 @@ const Chat = ({
                 lastUpdated: new Date().toISOString()
             };
 
-            console.log("new summary generated: ", newSummary);
-
             // Save the new summary to IndexedDB
             const summaryResult = await saveSummaryToThread(
                 newSummary,
                 threadId
             );
-            console.log("Summary saved: ", summaryResult);
+
+            // TODO: handle result set
         } catch (err) {
             console.error("Error generating summary:", err);
         }
@@ -448,7 +466,6 @@ const Chat = ({
             updateThread(thread.threadId, newUserMessage).then((resultSet) => {
                 if (resultSet.success) {
                     setThread(updatedThread);
-                    console.log(resultSet.message);
                 } else {
                     console.error(resultSet.message);
                 }
@@ -491,30 +508,11 @@ const Chat = ({
 
                 // TODO: update summary object. periodically... hmmm how to handle this?? Need a non-hacky way of handling this ay.
 
-                // if (updatedThread.messages.length < 4) {
-                //   updateConversationSummary(thread.threadId, newThread.messages)
-                // } else if (updatedThread.messages.length > 4 && updatedThread.messages.length % 4 === 0) {
-                //   updateConversationSummary(thread.threadId, newThread.messages)
-                // }
-
-                console.log("I should be fucking working here.");
-
                 await updateConversationSummary(
                     thread.threadId,
                     currentSummary,
                     aiResponse.data
                 );
-
-                // const newSummaryContent =
-                //     currentSummary +
-                //     `\nUser: ${newUserMessage.content}\nGemini: ${aiResponse}`;
-
-                // const newSummary: ThreadSummary = {
-                //     content: newSummaryContent,
-                //     lastUpdated: new Date().toISOString()
-                // };
-
-                // await saveSummaryToThread(newSummary, thread.threadId);
             } else {
                 const newGeminiMessage: Message = {
                     role: "ai-error",
@@ -531,8 +529,6 @@ const Chat = ({
 
                 updateThread(thread.threadId, newGeminiMessage).then(
                     (resultSet) => {
-                        console.log(resultSet);
-
                         if (resultSet.success) {
                             setThread(newThread);
                         } else {
@@ -541,8 +537,6 @@ const Chat = ({
                         }
                     }
                 );
-
-                console.log("Could not generate AI response");
             }
         } catch (error) {
             console.error("Error handling submit: ", error);
@@ -596,10 +590,6 @@ const Chat = ({
 
         // TODO: Cache this... don't want to repeat scraping if we don't have to... will need to identify if the page has been pulled from somehow.
         const pageContent = await fetchPageTextContent();
-        // console.log(pageContent);
-
-        const responseCharacteristicPreference =
-            "Express things as simply as possible, be kind and empathetic, be patient.";
 
         // TODO: At the moment I have just fetched the gemini response and set the user message to be the prompt, without what actually goes to Gemini in there.
         const newUserMessage: Message = {
@@ -622,15 +612,13 @@ const Chat = ({
         if (identifier === "summarize-page") {
             // This can be handled by simply asking Gemini to look it up and summarize it.
             // Insert context from preferences (how you want Gemini to respond to you... used dummy preference for now)
-            messageToGemini = `Please summarize the website by looking at the following HTML content. Your response should be in correctly formatted markdown and you are to respond with these characteristics: ${responseCharacteristicPreference}. Here is the website's text-based HTML to be summarized: ${pageContent}`;
+            messageToGemini = `Please summarize the website by looking at the following HTML content. Your response should be in correctly formatted markdown and you are to respond with these characteristics: ${characteristicsPreference}. You are also to append the following additions to your response: ${interactionsPreference}\n\n Here is the website's text-based HTML to be summarized: ${pageContent}`;
         } else if (identifier === "main-purpose") {
             // This prompt asks Gemini to identify the main purpose of the webpage
-            messageToGemini = `What is the main purpose or goal of this webpage? Your response should be in correctly formatted markdown and you are to respond with these characteristics: ${responseCharacteristicPreference}. Here is the website's text-based HTML: ${pageContent}`;
+            messageToGemini = `What is the main purpose or goal of this webpage? Your response should be in correctly formatted markdown and you are to respond with these characteristics: ${characteristicsPreference}. You are also to append the following additions to your response: ${interactionsPreference}\n\nHere is the website's text-based HTML: ${pageContent}`;
         } else if (identifier === "explain-complex-terms") {
             // This prompt asks Gemini to explain any complex terms found on the webpage
-            messageToGemini = `Please identify and explain any complex terms or concepts found in the following HTML content. Your response should be in correctly formatted markdown and you are to respond with these characteristics: ${responseCharacteristicPreference}. Here is the website's text-based HTML: ${pageContent}`;
-        } else {
-            messageToGemini = "";
+            messageToGemini = `Identify and explain any complex terms or concepts found in the following HTML content. Your response should be in correctly formatted markdown and you are to respond with these characteristics: ${characteristicsPreference}. You are also to append the following additions to your response: ${interactionsPreference}\n\nHere is the website's text-based HTML: ${pageContent}`;
         }
 
         updateThread(thread.threadId, newUserMessage).then((resultSet) => {
@@ -663,8 +651,6 @@ const Chat = ({
 
                 updateThread(thread.threadId, newGeminiMessage).then(
                     (resultSet) => {
-                        console.log(resultSet);
-
                         if (resultSet.success) {
                             setThread(newThread);
                         } else {
@@ -695,8 +681,6 @@ const Chat = ({
 
                 updateThread(thread.threadId, newGeminiMessage).then(
                     (resultSet) => {
-                        console.log(resultSet);
-
                         if (resultSet.success) {
                             setThread(newThread);
                         } else {
@@ -704,11 +688,6 @@ const Chat = ({
                             console.error(resultSet.message);
                         }
                     }
-                );
-
-                // Don't need to update conversation summary.
-                console.log(
-                    "Could not set new message type, something went wrong."
                 );
             }
         } catch (error) {
@@ -723,16 +702,6 @@ const Chat = ({
 
     return (
         <div className="flex flex-col mt-auto">
-            {/* {hoveredElementRef.current && (
-        <div className="mt-4">
-          <h3>Hovered Element Details:</h3>
-          <pre className="bg-gray-100 p-2 rounded">
-            {JSON.stringify(hoveredElementRef.current, null, 2)}
-          </pre>
-        </div>
-      )}
-      {loading && <p>Loading...</p>} */}
-
             <Carousel className="px-4 w-full mb-4 group relative">
                 <div className="w-full justify-center translate-y-2 z-10 relative space-x-4">
                     <CarouselPrevious />

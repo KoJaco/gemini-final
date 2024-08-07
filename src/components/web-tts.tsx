@@ -30,15 +30,10 @@ const WebTTS = ({
     const synthRef = useRef<SpeechSynthesis>(window.speechSynthesis);
     const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-    // console.log(transcript);
-
     useEffect(() => {
         const sanitized = stripMarkdownSyntax(text);
         setSanitizedText(sanitized);
-        // console.log(sanitizedText);
         generateTranscript(sanitized);
-
-        // console.log("transcript", transcript);
     }, [text]);
 
     const generateTranscript = (text: string) => {
@@ -190,9 +185,7 @@ const WebTTS = ({
         };
 
         utterance.onboundary = (event: SpeechSynthesisEvent) => {
-            // console.log(event);
             if (event.name === "word") {
-                // console.log(event.charIndex);
                 highlightWord(event.charIndex + startIdx);
             }
         };

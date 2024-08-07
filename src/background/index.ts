@@ -25,7 +25,7 @@ chrome.action.onClicked.addListener(() => {
 });
 
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
-    console.log("Message Fired: ", message.action);
+    // console.log("Message Fired: ", message.action);
 
     try {
         const tabs = await chrome.tabs.query({
@@ -91,7 +91,6 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
                     return true;
 
                 case "MENU_OPTION_CLICKED":
-                    console.log("Content menu option click: ", message.payload);
                     sendResponse({ success: true });
                     return true;
 
@@ -112,18 +111,3 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         });
     }
 });
-
-// const storage = new Storage()
-
-// await storage.set("serial-number", 47)
-
-// storage.watch({
-//   "serial-number": (c) => {
-//     console.log(c.newValue)
-//   },
-//   make: (c) => {
-//     console.log(c.newValue)
-//   }
-// })
-
-// await storage.set("serial-number", 96)

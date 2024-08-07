@@ -58,10 +58,7 @@ export function ChatMessage({
     const messageContainerRef = useRef<HTMLDivElement | null>(null);
     const ttsRef = useRef<HTMLDivElement | null>(null);
 
-    // // console.log(displayedText);
     const { typewriter, setTypewriter } = useAppStore();
-
-    // console.log(message)
 
     useEffect(() => {
         if (typewriter) {
@@ -89,24 +86,22 @@ export function ChatMessage({
         }
     }, [currentIndex, speed, message]);
 
-    async function handleTextToSpeech(text: string) {
-        /**
-         * 1. Check whether the user is on Web Speech or is using Whisper (if Web Speech then render out web-tts component and pass text...)
-         * 2. Check if an audio blob exists for the current message in the database, if so then setCurrentAudio to that in globalAppState.
-         * 3. If no audio blob exists fro the current message, request one from whisperAPI and handle the resulting flow (set an error if necessary)
-         * 4.
-         */
+    // async function handleTextToSpeech(text: string) {
+    //     /**
+    //      * 1. Check whether the user is on Web Speech or is using Whisper (if Web Speech then render out web-tts component and pass text...)
+    //      * 2. Check if an audio blob exists for the current message in the database, if so then setCurrentAudio to that in globalAppState.
+    //      * 3. If no audio blob exists fro the current message, request one from whisperAPI and handle the resulting flow (set an error if necessary)
+    //      * 4.
+    //      */
 
-        const res = await requestTTS(text);
+    //     const res = await requestTTS(text);
 
-        if (res.success) {
-            console.log(res.message);
-            const { data } = res;
-            console.log(data);
-        } else {
-            console.log(res);
-        }
-    }
+    //     if (res.success) {
+    //         const { data } = res;
+    //     } else {
+    //         console.log(res);
+    //     }
+    // }
 
     // TODO: make this a hook...
 
@@ -142,8 +137,6 @@ export function ChatMessage({
     const debouncedMouseMove = debounce(handleMouseMove, 50);
 
     // TODO: Adjust system message styling..
-
-    // console.log("displayedText", displayedText);
 
     return (
         <AudioProvider>

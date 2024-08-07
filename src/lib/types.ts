@@ -51,11 +51,13 @@ export type AiInteractionsLabel =
 // AI Interactions
 export const AI_INTERACTIONS_VALUE = {
     FURTHER_EXPLANATIONS:
-        "Provide additional explanations and context where necessary.",
+        "provide additional explanations and context to your response where necessary.",
 
-    EXAMPLES: "Include examples to illustrate complex concepts.",
+    EXAMPLES:
+        "include examples to illustrate complex concepts in your response. If there are not relatively complex concepts expressed simply mention why the concept cannot be illustrated.",
 
-    FOLLOW_UP_QUESTIONS: "Offer follow-up questions to deepen understanding.",
+    FOLLOW_UP_QUESTIONS:
+        "provide some follow-up questions that I could ask or research myself to help me understand your response better.",
 
     NONE: ""
 } as const;
