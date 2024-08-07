@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+import type { Preferences } from "../types";
+
 interface AppState {
     autoImprovementsActive: boolean;
     setAutoImprovementsActive: (value: boolean) => void;
@@ -9,7 +11,9 @@ interface AppState {
     geminiApiKey: string | null;
     setGeminiApiKey: (value: string | null) => void;
     whisperApiKey: string | null;
-    setWhisperAPiKey: (value: string | null) => void;
+    setWhisperAPIKey: (value: string | null) => void;
+    preferencesState: Preferences | null;
+    savePreferencesState: (value: Preferences) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -25,8 +29,11 @@ export const useAppStore = create<AppState>()(
                 setGeminiApiKey: (value) =>
                     set(() => ({ geminiApiKey: value })),
                 whisperApiKey: null,
-                setWhisperAPiKey: (value) =>
-                    set(() => ({ whisperApiKey: value }))
+                setWhisperAPIKey: (value) =>
+                    set(() => ({ whisperApiKey: value })),
+                preferencesState: null,
+                savePreferencesState: (value) =>
+                    set(() => ({ preferencesState: value }))
             }),
             { name: "Gemini Application Store" }
         )

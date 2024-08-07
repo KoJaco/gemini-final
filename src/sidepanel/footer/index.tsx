@@ -83,7 +83,7 @@ const SidepanelFooter = ({
                 break;
             case "preferences":
                 setCurrentView(identifier);
-
+                break;
             default:
                 console.log(`Identifier '${identifier}' was incorrect.`);
         }

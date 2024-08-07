@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import WebTTS from "@/components/web-tts";
+import { defaultPreferences } from "@/lib/constants";
 import { useScrollAnchor } from "@/lib/hooks/use-scroll-anchor";
 import { Providers } from "@/lib/providers";
 import { createNewChatThread, getLatestThread } from "@/lib/storage/indexed-db";
@@ -18,7 +19,7 @@ import {
     getApiKey,
     getPreferences,
     removeApiKey,
-    setPreferences
+    savePreferences
 } from "@/lib/storage/secure";
 import { useAppStore } from "@/lib/stores/appStore";
 import type { AvailableViews, ChatThread } from "@/lib/types";
@@ -51,65 +52,155 @@ const Sidepanel = () => {
         scrollToBottom
     } = useScrollAnchor();
 
-    const { geminiApiKey, setGeminiApiKey, whisperApiKey, setWhisperAPiKey } =
-        useAppStore();
+    const {
+        geminiApiKey,
+        setGeminiApiKey,
+        whisperApiKey,
+        setWhisperAPIKey,
+        savePreferencesState
+    } = useAppStore();
 
     useEffect(() => {
-        const fetchApiKey = async () => {
-            const response = await getApiKey("googleGeminiApiKey");
+        const initApp = async () => {
+            try {
+                setLoading(true);
+                // fetch api keys
+                const geminiResponse = await getApiKey("googleGeminiApiKey");
+                const whisperResponse = await getApiKey("whisperApiKey");
 
-            if (response.success && response.data) {
-                setGeminiApiKey(response.data);
-            } else {
-                console.log(response.error);
+                if (geminiResponse.success && geminiResponse.data) {
+                    setGeminiApiKey(geminiResponse.data);
+                } else {
+                    // handle this accordingly, user cannot interact with application... push to form
+                    console.error(geminiResponse.error);
+                }
+
+                if (whisperResponse.success && whisperResponse.data) {
+                    setWhisperAPIKey(whisperResponse.data);
+                } else {
+                    // (optional) so can continue
+                    setWhisperAPIKey(null);
+                }
+
+                // fetch latest thread (Current Chat)
+                const latestThread = await getLatestThread();
+
+                if (latestThread !== undefined) {
+                    setCurrentChatThread(latestThread);
+                } else {
+                    // create new thread and set
+                    const id = nanoid();
+                    const newThread: ChatThread = {
+                        threadId: id,
+                        messages: [
+                            {
+                                role: "assistant",
+                                content:
+                                    "Hey! I'm your personal AI assistant trying to make the web a more accessible place for all. Ask me anything!",
+                                id: `msg-open`,
+                                createdAt: new Date().toISOString(),
+                                threadId: id
+                            }
+                        ],
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                    };
+                    const res = await createNewChatThread(newThread);
+
+                    if (res.success) {
+                        setCurrentChatThread(newThread);
+                        console.log("Successfully created new thread");
+                    } else {
+                        console.log(res.message);
+                    }
+                }
+
+                // fetch preferences
+
+                const preferencesResponse = await getPreferences();
+
+                if (preferencesResponse.success && preferencesResponse.data) {
+                    savePreferencesState(preferencesResponse.data);
+                } else {
+                    console.warn(
+                        "No preferences found, using defaults: ",
+                        preferencesResponse.error
+                    );
+                    savePreferences(defaultPreferences);
+                }
+            } catch (error) {
+                console.error("Error during initialization: ", error);
+                setError({ display: true, message: (error as Error).message });
+            } finally {
+                setLoading(false);
             }
-
-            setLoading(false);
         };
 
-        fetchApiKey();
-    }, []);
+        initApp();
+    }, [
+        geminiApiKey,
+        whisperApiKey,
+        savePreferencesState,
+        setCurrentChatThread
+    ]);
 
-    useEffect(() => {});
+    // useEffect(() => {
+    //     const fetchApiKey = async () => {
+    //         const response = await getApiKey("googleGeminiApiKey");
 
-    useEffect(() => {
-        async function fetchOrCreateLatestThread() {
-            const latestThread = await getLatestThread();
+    //         if (response.success && response.data) {
+    //             setGeminiApiKey(response.data);
+    //         } else {
+    //             // handle this accordingly, user cannot interact with application... push them to form
+    //             console.log(response.error);
+    //         }
 
-            if (latestThread !== undefined) {
-                setCurrentChatThread(latestThread);
-            } else {
-                const id = nanoid();
+    //         setLoading(false);
+    //     };
 
-                const newThread: ChatThread = {
-                    threadId: id,
-                    messages: [
-                        {
-                            role: "assistant",
-                            content:
-                                "Hey! I'm your personal AI assistant trying to make the web a more accessible place for all. Ask me anything!",
-                            id: `msg-open`,
-                            createdAt: new Date().toISOString(),
-                            threadId: id
-                        }
-                    ],
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                };
-                const res = await createNewChatThread(newThread);
+    //     fetchApiKey();
+    // }, []);
 
-                // TODO: Something is going wrong with the res....
-                if (res.success) {
-                    setCurrentChatThread(newThread);
-                    console.log("Successfully created new thread");
-                } else {
-                    console.log(res.message);
-                }
-            }
-        }
+    // useEffect(() => {});
 
-        fetchOrCreateLatestThread();
-    }, []);
+    // useEffect(() => {
+    //     async function fetchOrCreateLatestThread() {
+    //         const latestThread = await getLatestThread();
+
+    //         if (latestThread !== undefined) {
+    //             setCurrentChatThread(latestThread);
+    //         } else {
+    //             const id = nanoid();
+
+    //             const newThread: ChatThread = {
+    //                 threadId: id,
+    //                 messages: [
+    //                     {
+    //                         role: "assistant",
+    //                         content:
+    //                             "Hey! I'm your personal AI assistant trying to make the web a more accessible place for all. Ask me anything!",
+    //                         id: `msg-open`,
+    //                         createdAt: new Date().toISOString(),
+    //                         threadId: id
+    //                     }
+    //                 ],
+    //                 createdAt: new Date().toISOString(),
+    //                 updatedAt: new Date().toISOString()
+    //             };
+    //             const res = await createNewChatThread(newThread);
+
+    //             // TODO: Something is going wrong with the res....
+    //             if (res.success) {
+    //                 setCurrentChatThread(newThread);
+    //                 console.log("Successfully created new thread");
+    //             } else {
+    //                 console.log(res.message);
+    //             }
+    //         }
+    //     }
+
+    //     fetchOrCreateLatestThread();
+    // }, []);
 
     function renderCurrentView() {
         switch (currentView) {
@@ -233,7 +324,7 @@ const Sidepanel = () => {
                                     <ApiEntryForm
                                         geminiApiKey={geminiApiKey}
                                         setGeminiKey={setGeminiApiKey}
-                                        setWhisperApiKey={setWhisperAPiKey}
+                                        setWhisperApiKey={setWhisperAPIKey}
                                         setApiKeysLoading={setApiKeysLoading}
                                         setError={setError}
                                     />

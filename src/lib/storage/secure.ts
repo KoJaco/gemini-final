@@ -14,9 +14,42 @@ if (!password || password.length === 0) {
 }
 
 // API keys are kept separate to preferences...
-export const setPreferences = async () => {};
+// Set Preferences
+export const savePreferences = async (
+    preferences: Preferences
+): Promise<ResultObject> => {
+    try {
+        await storage.setPassword(password);
+        await storage.set("preferences", JSON.stringify(preferences));
+        return { success: true };
+    } catch (error) {
+        return {
+            success: false,
+            error: error as Error,
+            message: (error as Error).message
+        };
+    }
+};
 
-export const getPreferences = async () => {};
+// Get Preferences
+export const getPreferences = async (): Promise<{
+    success: boolean;
+    data?: Preferences;
+    error?: string;
+}> => {
+    try {
+        await storage.setPassword(password);
+        const res = await storage.get("preferences");
+        if (res) {
+            const preferences: Preferences = JSON.parse(res);
+            return { success: true, data: preferences };
+        } else {
+            return { success: false, error: "Preferences not found" };
+        }
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
+    }
+};
 
 export const storeGeminiApiKey = async (
     geminiApiKey: string

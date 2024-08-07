@@ -7,36 +7,89 @@ export type FooterButtonType = {
 
 export type ContextOption = "read" | "summarize" | "simplify" | "translate";
 
-type AiCharacteristics = {
+// AI Characteristics
+export const AI_CHARACTERISTICS = {
+    SIMPLICITY: "simplicity",
+    DETAIL: "detail",
+    CLARITY: "clarity",
+    CONCISENESS: "conciseness",
+    TONE: "tone",
+    ENGAGEMENT: "engagement",
+    CREATIVITY: "creativity"
+    // CUSTOM: "custom"
+} as const;
+
+export type AiCharacteristicsLabel =
+    (typeof AI_CHARACTERISTICS)[keyof typeof AI_CHARACTERISTICS];
+
+export const AI_CHARACTERISTICS_VALUE = {
+    SIMPLICITY:
+        "Express things as simply as possible, be kind and empathetic, be patient.",
+    DETAIL: "Provide detailed explanations and thorough insights.",
+    CLARITY: "Ensure explanations are clear and easy to understand.",
+    CONCISENESS: "Keep responses short and to the point.",
+    TONE: "Adjust the tone to be friendly, formal, or neutral based on the context.",
+    ENGAGEMENT: "Be engaging and interactive.",
+    CREATIVITY: "Allow for creative and imaginative responses."
+    // CUSTOM: "custom"
+} as const;
+
+export type AIiCharacteristicsValue =
+    (typeof AI_CHARACTERISTICS_VALUE)[keyof typeof AI_CHARACTERISTICS_VALUE];
+
+// AI Interactions
+export const AI_INTERACTIONS = {
+    FOLLOW_UP_QUESTIONS: "follow_up_questions",
+    FURTHER_EXPLANATIONS: "further_explanations",
+    EXAMPLES: "examples",
+    NONE: "none"
+} as const;
+
+export type AiInteractionsLabel =
+    (typeof AI_INTERACTIONS)[keyof typeof AI_INTERACTIONS];
+
+// AI Interactions
+export const AI_INTERACTIONS_VALUE = {
+    FURTHER_EXPLANATIONS:
+        "Provide additional explanations and context where necessary.",
+
+    EXAMPLES: "Include examples to illustrate complex concepts.",
+
+    FOLLOW_UP_QUESTIONS: "Offer follow-up questions to deepen understanding.",
+
+    NONE: ""
+} as const;
+
+export type AiInteractionsValue =
+    (typeof AI_INTERACTIONS_VALUE)[keyof typeof AI_INTERACTIONS_VALUE];
+
+// Languages
+export const TRANSLATE_LANGUAGES = {
+    SPANISH: { id: "es", language: "spanish" },
+    ENGLISH: { id: "en-AU", language: "english" }
+} as const;
+
+export type TranslateLanguage =
+    (typeof TRANSLATE_LANGUAGES)[keyof typeof TRANSLATE_LANGUAGES];
+
+export type AiCharacteristics = {
     characteristics: {
-        // add a few more of these
-        label:
-            | "simplicity"
-            | "detail"
-            | "clarity"
-            | "conciseness"
-            | "tone"
-            | "engagement"
-            | "creativity"
-            | "custom";
-        value: string;
+        label: AiCharacteristicsLabel;
+        value: AIiCharacteristicsValue;
     };
 };
 
-type AiInteractions = {
+export type AiInteractions = {
     interactions: {
-        description: string;
-        label: "further-explanations" | "examples" | "follow-up-questions";
-        value: boolean;
+        label: AiInteractionsLabel;
+        value: AiInteractionsValue;
     };
 };
 
-type ApplicationSettings = {
+export type ApplicationSettings = {
     translateToLanguage: {
-        value:
-            | { id: "es"; language: "spanish" }
-            | { id: "en-AU"; language: "english" };
-    };
+        value: TranslateLanguage;
+    } | null;
 };
 
 export interface Preferences {
