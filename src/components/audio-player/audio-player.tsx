@@ -7,28 +7,31 @@ import { PlaybackRateButton } from "@/components/audio-player/playback-rate-butt
 import { RewindButton } from "@/components/audio-player/rewind-button";
 import { Slider } from "@/components/audio-player/slider";
 import { useAudioPlayer } from "@/lib/providers/audio-provider";
+import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-function parseTime(seconds: number) {
-    let hours = Math.floor(seconds / 3600);
-    let minutes = Math.floor((seconds - hours * 3600) / 60);
-    seconds = seconds - hours * 3600 - minutes * 60;
-    return [hours, minutes, seconds];
-}
+import { Button } from "../ui/button";
 
-function formatHumanTime(seconds: number) {
-    let [h, m, s] = parseTime(seconds);
-    return `${h} hour${h === 1 ? "" : "s"}, ${m} minute${
-        m === 1 ? "" : "s"
-    }, ${s} second${s === 1 ? "" : "s"}`;
-}
+// function parseTime(seconds: number) {
+//     let hours = Math.floor(seconds / 3600);
+//     let minutes = Math.floor((seconds - hours * 3600) / 60);
+//     seconds = seconds - hours * 3600 - minutes * 60;
+//     return [hours, minutes, seconds];
+// }
+
+// function formatHumanTime(seconds: number) {
+//     let [h, m, s] = parseTime(seconds);
+//     return `${h} hour${h === 1 ? "" : "s"}, ${m} minute${
+//         m === 1 ? "" : "s"
+//     }, ${s} second${s === 1 ? "" : "s"}`;
+// }
 
 interface Props {
-    audioBlob: Blob | null;
+    showAudioPlayer: (value: boolean) => void;
 }
 
-export function AudioPlayer({ audioBlob }: Props) {
-    let player = useAudioPlayer(undefined, audioBlob);
+export function AudioPlayer({ showAudioPlayer }: Props) {
+    let player = useAudioPlayer();
 
     let wasPlayingRef = useRef(false);
 
@@ -38,41 +41,33 @@ export function AudioPlayer({ audioBlob }: Props) {
 
     useEffect(() => {
         setCurrentTime(null);
-    }, [player.currentTime]);
+    }, [player.currentTime, player.duration]);
 
-    if (!player.audio && !audioBlob) {
+    if (!player.audioBlob) {
         return null;
     }
 
+    const handleCancelAudio = () => {
+        player.pause();
+        showAudioPlayer(false);
+    };
+
     return (
-        <div className="flex items-center gap-6 bg-white/90 px-4 py-4 shadow shadow-slate-200/80 ring-1 ring-slate-900/5 backdrop-blur-sm md:px-6">
+        <div className="flex items-center gap-6 bg-background/75 rounded-full px-1 py-4 shadow border border-muted-foreground/50 backdrop-blur-sm md:px-6">
             <div className="hidden md:block">
                 <PlayButton player={player} />
             </div>
             <div className="mb-[env(safe-area-inset-bottom)] flex flex-1 flex-col gap-3 overflow-hidden p-1">
-                <div className="truncate text-center text-sm font-bold leading-6 md:text-left">
-                    {audioBlob ? "Audio Blob" : player.audio?.title}
-                </div>
-
-                {/*               
-                <a
-                    href={`/${player.audio.id}`}
-                    className="truncate text-center text-sm font-bold leading-6 md:text-left"
-                    title={player.audio.title}>
-                    {player.audio.title}
-                </a> */}
-                <div className="flex justify-between gap-6">
-                    <div className="flex items-center md:hidden">
-                        <MuteButton player={player} />
-                    </div>
-                    <div className="flex flex-none items-center gap-4">
-                        <RewindButton player={player} />
+                <div className="flex justify-between gap-4 flex-col items-center">
+                    <div className="flex flex-none items-center gap-4 flex-col">
                         <div className="md:hidden">
                             <PlayButton player={player} />
                         </div>
                         <ForwardButton player={player} />
+                        <RewindButton player={player} />
                     </div>
-                    <Slider
+                    {/* no slider for now */}
+                    {/* <Slider
                         label="Current time"
                         maxValue={player.duration}
                         step={1}
@@ -91,14 +86,24 @@ export function AudioPlayer({ audioBlob }: Props) {
                             wasPlayingRef.current = player.playing;
                             player.pause();
                         }}
-                    />
-                    <div className="flex items-center gap-4">
+                    /> */}
+                    <div className="flex items-center gap-4 flex-col">
+                        <div className="flex items-center">
+                            <MuteButton player={player} />
+                        </div>
                         <div className="flex items-center">
                             <PlaybackRateButton player={player} />
                         </div>
-                        <div className="hidden items-center md:flex">
-                            <MuteButton player={player} />
-                        </div>
+                    </div>
+                    <div className="w-full flex items-center justify-center border-t hover:bg-background transition-colors duration-300">
+                        <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="rounded-0 mt-2"
+                            onClick={handleCancelAudio}>
+                            <X className="w-4 h-4 rotate-180" />
+                        </Button>
                     </div>
                 </div>
             </div>

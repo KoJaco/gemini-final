@@ -161,6 +161,13 @@ export type ResultObject = {
     message?: string;
 };
 
+export interface AudioData {
+    audioId: string;
+    messageId: string;
+    audioBlob: Blob;
+    transcript?: any;
+}
+
 export interface Audio {
     id: number;
     title: string;

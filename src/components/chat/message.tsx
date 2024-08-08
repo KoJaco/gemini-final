@@ -2,6 +2,7 @@
 
 // import { useAppStore } from "@/lib/stores/appStore"
 // import { useAppStore } from "@/lib/stores/appStore"
+import { rejects } from "assert";
 import { AudioPlayer } from "@/components/audio-player/audio-player";
 import ErrorBoundary from "@/components/errors/ErrorBoundary";
 import {
@@ -16,16 +17,22 @@ import {
     useAudioPlayer,
     type PlayerAPI
 } from "@/lib/providers/audio-provider";
-import { requestTTS } from "@/lib/storage/openAiApi";
+import {
+    getAudioDataByMessageId,
+    saveAudioData
+} from "@/lib/storage/indexed-db";
+import { getTranscription, requestTTS } from "@/lib/storage/openAiApi";
 import { useAppStore } from "@/lib/stores/appStore";
-import type { Message } from "@/lib/types";
+import type { AudioData, Message } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import clsx from "clsx";
-import { AudioLines, MonitorCog } from "lucide-react";
+import { AudioLines, MonitorCog, Pause, Play } from "lucide-react";
 import Markdown, { type MarkdownToJSX } from "markdown-to-jsx";
+import { nanoid } from "nanoid";
 import React, { memo, useEffect, useRef, useState, type FC } from "react";
 import { createPortal } from "react-dom";
 
+import { MainPlayButton } from "../audio-player/main-play-button";
 // import ReactMarkdown, { type Options } from "react-markdown";
 // import remarkGfm from "remark-gfm";
 // import remarkMath from "remark-math";
@@ -59,9 +66,12 @@ export function ChatMessage({
     const [isHovered, setIsHovered] = useState(false);
     const [displayAudio, setDisplayAudio] = useState(false);
     const [audioIsInProgress, setAudioIsInProgress] = useState(false);
-    const [messageAudioLoading, setMessageAudioLoading] = useState(false);
+    const [showAudioPlayer, setShowAudioPlayer] = useState(false);
 
-    const [currentAudio, setCurrentAudio] = useState<PlayerAPI | null>(null);
+    const [messageAudioLoading, setMessageAudioLoading] = useState(false);
+    // TODO: add another state for transcription loading?
+
+    const [currentAudio, setCurrentAudio] = useState<AudioData | null>(null);
     const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
 
     const messageContainerRef = useRef<HTMLDivElement | null>(null);
@@ -149,8 +159,85 @@ export function ChatMessage({
 
     const debouncedMouseMove = debounce(handleMouseMove, 50);
 
+    // console.log(currentAudio);
+
+    useEffect(() => {
+        const fetchAudio = async () => {
+            try {
+                const audioData: AudioData = await getAudioDataByMessageId(
+                    message.id
+                );
+
+                if (audioData) {
+                    setCurrentAudio(audioData);
+                }
+            } catch (error) {
+                console.warn(
+                    `Could not fetch audio data on message with id: ${message.id}`,
+                    error
+                );
+            }
+        };
+
+        fetchAudio();
+    }, [saveAudioData]);
+
     const handleConvertMessageToWhisper = async (messageContent: string) => {
         setMessageAudioLoading(true);
+
+        // handle case that you already have an audio item generated for the message.
+
+        try {
+            // Step 1: Convert text to audio
+            const ttsResult = await requestTTS(messageContent);
+
+            if (!ttsResult.success || !ttsResult.data) {
+                console.error(ttsResult.message);
+                setMessageAudioLoading(false);
+                return;
+            }
+
+            const audioBlob = ttsResult.data;
+
+            // TODO: transcript currently not working.
+
+            // Step 2: Get transcription
+            const transcriptionResult = await getTranscription(audioBlob);
+
+            if (
+                !transcriptionResult.success ||
+                !transcriptionResult.transcript
+            ) {
+                console.error(transcriptionResult.message);
+                setMessageAudioLoading(false);
+                return;
+            }
+
+            const transcript = transcriptionResult.transcript;
+
+            // Step 3: Save audio data and transcription to IndexedDB
+            const audioData = {
+                audioId: nanoid(),
+                messageId: message.id,
+                audioBlob: audioBlob,
+                transcript: transcript
+            };
+
+            console.log(audioData);
+
+            const saveResult = await saveAudioData(audioData);
+
+            if (!saveResult.success) {
+                console.error(saveResult.message);
+            } else {
+                console.log("Audio data and transcription saved successfully.");
+                setCurrentAudio(audioData);
+            }
+        } catch (error) {
+            console.error("An error occurred:", error);
+        } finally {
+            setMessageAudioLoading(false);
+        }
     };
 
     const handleMouseLeave = () => {
@@ -160,6 +247,7 @@ export function ChatMessage({
             setDisplayAudio(false);
         }
     };
+
     // TODO: Edge case, should not be able to play two WebTTS components at the same time... results in buggy behaviour.
 
     // TODO: Adjust system message styling..
@@ -170,273 +258,272 @@ export function ChatMessage({
 
     // TODO: Memoize markdown
 
+    // TODO: clean this up a lot... so many state var... unnecessary
+
+    // TODO: instead of tracking cursor positioning, this should track the current position of the read out... I'm going to have to make another provider that just does the highlighting for both WebSpeech and the Whisper Stuff.
+
     if (typeof displayedText !== "string") {
         console.error("displayedText is not a string: ", displayedText);
         return null;
     }
 
     return (
-        // <AudioProvider>
-        <div
-            id={`message-container-${message.id}`}
-            ref={messageContainerRef}
-            className={cn(
-                "group w-full mb-10 items-start h-auto relative flex flex-col overflow-x-hidden transition-all duration-300 max-w-full"
-            )}
-            onMouseEnter={() => setDisplayAudio(true)}
-            onMouseLeave={handleMouseLeave}
-            onMouseMove={debouncedMouseMove}
-            // onMouseMove={handleMouseMove}
-            style={{ overflow: "visible" }}
-            {...props}>
-            <div className="flex justify-between w-full items-center gap-x-4">
-                <div
-                    className={clsx(
-                        "flex w-full mb-2",
-                        message.role === "user" || message.role === "system"
-                            ? "justify-end"
-                            : "justify-start"
-                    )}>
-                    {message.role === "user" && (
-                        <IconUser className="w-4 h-4" />
+        <AudioProvider>
+            <div
+                id={`message-container-${message.id}`}
+                ref={messageContainerRef}
+                className={cn(
+                    "group w-full mb-10 items-start h-auto relative flex flex-col overflow-x-hidden transition-all duration-300 max-w-full"
+                )}
+                onMouseEnter={() => setDisplayAudio(true)}
+                onMouseLeave={handleMouseLeave}
+                onMouseMove={debouncedMouseMove}
+                // onMouseMove={handleMouseMove}
+                style={{ overflow: "visible" }}
+                {...props}>
+                <div className="flex justify-between w-full items-center gap-x-4">
+                    <div
+                        className={clsx(
+                            "flex w-full mb-2",
+                            message.role === "user" || message.role === "system"
+                                ? "justify-end"
+                                : "justify-start"
+                        )}>
+                        {message.role === "user" && (
+                            <IconUser className="w-4 h-4" />
+                        )}
+                        {message.role === "assistant" && (
+                            <IconGemini className="w-4 h-4 text-red-500" />
+                        )}
+                        {message.role === "system" && (
+                            <MonitorCog className="w-4 h-4 text-orange-500" />
+                        )}
+                    </div>
+
+                    {currentAudio && !useWebSpeech && (
+                        <MainPlayButton
+                            audioBlob={currentAudio.audioBlob}
+                            setShowAudioPlayer={setShowAudioPlayer}
+                            className="mr-auto flex-start mb-2 rounded-full"
+                            playing={
+                                <>
+                                    <Pause className="h-3 w-3 fill-current" />
+                                    {/* <span aria-hidden="true">Listen</span> */}
+                                </>
+                            }
+                            paused={
+                                <>
+                                    <Play className="h-3 w-3 fill-current" />
+                                    {/* <span aria-hidden="true">Listen</span> */}
+                                </>
+                            }
+                        />
                     )}
-                    {message.role === "assistant" && (
-                        <IconGemini className="w-4 h-4 text-red-500" />
-                    )}
-                    {message.role === "system" && (
-                        <MonitorCog className="w-4 h-4 text-orange-500" />
+
+                    {!useWebSpeech && (
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Convert message to audio with Whisper"
+                            className="transition-transform hover:scale-105 duration-300 mb-2"
+                            disabled={!whisperApiKey || messageAudioLoading}
+                            onClick={() => {
+                                handleConvertMessageToWhisper(displayedText);
+                            }}>
+                            <AudioLines className="w-4 h-4" />
+                        </Button>
                     )}
                 </div>
 
-                <Button
-                    size="icon"
-                    variant="ghost"
-                    title="Convert message to audio with Whisper"
-                    className={clsx(
-                        "transition-transform hover:scale-105 duration-300 mb-2",
-                        !useWebSpeech ? "opacity-100" : "opacity-0"
+                <div
+                    className={cn(
+                        messageAudioLoading &&
+                            "animate-pulse opacity-50 pointer-events-none",
+                        "flex size-8 h-auto items-center text-left transition-colors duration-300 relative",
+                        message.role === "user" || message.role === "system"
+                            ? "border rounded-lg py-2.5 px-2 border-muted/50 place-self-end w-2/3 shadow backdrop-blur-lg bg-muted/50 flex-col"
+                            : "place-self-start w-full"
+                    )}>
+                    {messageAudioLoading && (
+                        <>
+                            <p className="absolute -top-[32px] text-muted-foreground left-6">
+                                Generating audio...
+                            </p>
+                            <div className="absolute h-full w-full flex bg-black/75 animate-pulse" />
+                        </>
                     )}
-                    disabled={!whisperApiKey}
-                    onClick={() => {
-                        handleConvertMessageToWhisper(displayedText);
-                    }}>
-                    <AudioLines className="w-4 h-4" />
-                </Button>
-            </div>
-            <div
-                className={cn(
-                    "flex size-8 h-auto items-center text-left transition-colors duration-300",
-                    message.role === "user" || message.role === "system"
-                        ? "border rounded-lg py-2.5 px-2 border-muted/50 place-self-end w-2/3 shadow backdrop-blur-lg bg-muted/50 flex-col"
-                        : "place-self-start w-full"
-                )}>
-                {message.role === "ai-error" ? (
-                    <Card className="border-destructive-foreground/20 border bg-destructive/50 rounded-lg prose dark:prose-invert prose-p:leading-relaxed w-full h-auto overflow-hidden flex">
-                        <CardContent className="space-y-4 w-full text-wrap flex-wrap">
-                            <CardTitle className="text-sm">
-                                Generative AI Error
-                            </CardTitle>
-                            <CardDescription className="w-full text-wrap truncate flex flex-wrap whitespace-normal break-all">
-                                {displayedText}
-                            </CardDescription>
-                        </CardContent>
-                    </Card>
-                ) : (
-                    <ErrorBoundary
-                        fallback={
-                            <Card className="border-destructive-foreground/20 border bg-destructive/50 rounded-lg prose dark:prose-invert prose-p:leading-relaxed">
-                                <CardContent className="space-y-4">
-                                    <CardTitle className="text-sm">
-                                        Uh oh! Something went wrong.
-                                    </CardTitle>
-                                    <CardDescription>
-                                        There is a known bug in parsing
-                                        markdown-formatted code. This will be
-                                        fixed asap.
-                                    </CardDescription>
-                                </CardContent>
-                            </Card>
-                        }>
-                        <div
-                            id={`text-content-${message.id}`}
-                            className="h-full w-full prose dark:prose-invert break-words prose-p:leading-relaxed prose-pre:p-0 text-wrap whitespace-normal prose-p:last:mb-0 prose-p:mb-2">
-                            <Markdown
-                                options={{
-                                    overrides: {
-                                        p: {
-                                            component: ({
-                                                children,
-                                                ...props
-                                            }) => {
-                                                return (
-                                                    <p {...props}>{children}</p>
-                                                );
+                    {message.role === "ai-error" ? (
+                        <Card className="border-destructive-foreground/20 border bg-destructive/50 rounded-lg prose dark:prose-invert prose-p:leading-relaxed w-full h-auto overflow-hidden flex">
+                            <CardContent className="space-y-4 w-full text-wrap flex-wrap">
+                                <CardTitle className="text-sm">
+                                    Generative AI Error
+                                </CardTitle>
+                                <CardDescription className="w-full text-wrap truncate flex flex-wrap whitespace-normal break-all">
+                                    {displayedText}
+                                </CardDescription>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <ErrorBoundary
+                            fallback={
+                                <Card className="border-destructive-foreground/20 border bg-destructive/50 rounded-lg prose dark:prose-invert prose-p:leading-relaxed">
+                                    <CardContent className="space-y-4">
+                                        <CardTitle className="text-sm">
+                                            Uh oh! Something went wrong.
+                                        </CardTitle>
+                                        <CardDescription>
+                                            There is a known bug in parsing
+                                            markdown-formatted code. This will
+                                            be fixed asap.
+                                        </CardDescription>
+                                    </CardContent>
+                                </Card>
+                            }>
+                            <div
+                                id={`text-content-${message.id}`}
+                                className="h-full w-full prose dark:prose-invert break-words prose-p:leading-relaxed prose-pre:p-0 text-wrap whitespace-normal prose-p:last:mb-0 prose-p:mb-2">
+                                <Markdown
+                                    options={{
+                                        overrides: {
+                                            p: {
+                                                component: ({
+                                                    children,
+                                                    ...props
+                                                }) => {
+                                                    return (
+                                                        <p {...props}>
+                                                            {children}
+                                                        </p>
+                                                    );
+                                                },
+                                                props: {
+                                                    className: "mb-2 last:mb-0"
+                                                }
                                             },
-                                            props: {
-                                                className: "mb-2 last:mb-0"
-                                            }
-                                        },
-                                        code: {
-                                            component: ({
-                                                node,
-                                                inline,
-                                                className,
-                                                children,
-                                                ...props
-                                            }) => {
-                                                if (children.length) {
-                                                    if (children[0] == "▍") {
+                                            code: {
+                                                component: ({
+                                                    node,
+                                                    inline,
+                                                    className,
+                                                    children,
+                                                    ...props
+                                                }) => {
+                                                    if (children.length) {
+                                                        if (
+                                                            children[0] == "▍"
+                                                        ) {
+                                                            return (
+                                                                <span className="mt-1 cursor-default animate-pulse">
+                                                                    ▍
+                                                                </span>
+                                                            );
+                                                        }
+
+                                                        children[0] = (
+                                                            children[0] as string
+                                                        ).replace("`▍`", "▍");
+                                                        // children[0] = (
+                                                        //     children[0] as string
+                                                        // ).replace("` `", " ");
+                                                    }
+
+                                                    const match =
+                                                        /language-(\w+)/.exec(
+                                                            className || ""
+                                                        );
+
+                                                    if (inline) {
                                                         return (
-                                                            <span className="mt-1 cursor-default animate-pulse">
-                                                                ▍
-                                                            </span>
+                                                            <code
+                                                                className={
+                                                                    className
+                                                                }
+                                                                {...props}>
+                                                                {children}
+                                                            </code>
                                                         );
                                                     }
 
-                                                    children[0] = (
-                                                        children[0] as string
-                                                    ).replace("`▍`", "▍");
-                                                    // children[0] = (
-                                                    //     children[0] as string
-                                                    // ).replace("` `", " ");
-                                                }
-
-                                                const match =
-                                                    /language-(\w+)/.exec(
-                                                        className || ""
-                                                    );
-
-                                                if (inline) {
                                                     return (
-                                                        <code
-                                                            className={
-                                                                className
+                                                        <CodeBlock
+                                                            key={Math.random()}
+                                                            language={
+                                                                (match &&
+                                                                    match[1]) ||
+                                                                ""
                                                             }
-                                                            {...props}>
-                                                            {children}
-                                                        </code>
+                                                            value={String(
+                                                                children
+                                                            ).replace(
+                                                                /\n$/,
+                                                                ""
+                                                            )}
+                                                            {...props}
+                                                        />
                                                     );
                                                 }
-
-                                                return (
-                                                    <CodeBlock
-                                                        key={Math.random()}
-                                                        language={
-                                                            (match &&
-                                                                match[1]) ||
-                                                            ""
-                                                        }
-                                                        value={String(
-                                                            children
-                                                        ).replace(/\n$/, "")}
-                                                        {...props}
-                                                    />
-                                                );
                                             }
                                         }
-                                    }
+                                    }}>
+                                    {displayedText}
+                                </Markdown>
+                            </div>
+                        </ErrorBoundary>
+                    )}
+                </div>
+
+                {currentAudio && !useWebSpeech && showAudioPlayer && (
+                    <>
+                        {createPortal(
+                            <div
+                                ref={ttsRef}
+                                className={clsx(
+                                    "absolute right-1 z-[1000] transition-all duration-300 ease-in-out"
+                                )}
+                                style={{
+                                    top: audioPlayerTopPosition,
+                                    transform: "translateY(-10%)"
                                 }}>
-                                {displayedText}
-                            </Markdown>
-                            {/* <MemoizedReactMarkdown
-                                remarkPlugins={[remarkGfm, remarkMath]}
-                                components={{
-                                    p({ children }) {
-                                        return (
-                                            <p className="mb-2 last:mb-0">
-                                                {children}
-                                            </p>
-                                        );
-                                    },
-                                    code({
-                                        node,
-                                        inline,
-                                        className,
-                                        children,
-                                        ...props
-                                    }) {
-                                        if (children.length) {
-                                            if (children[0] == "▍") {
-                                                return (
-                                                    <span className="mt-1 cursor-default animate-pulse">
-                                                        ▍
-                                                    </span>
-                                                );
-                                            }
+                                <AudioPlayer
+                                    showAudioPlayer={setShowAudioPlayer}
+                                />
+                            </div>,
+                            document.getElementById(
+                                `message-container-${message.id}`
+                            )
+                        )}
+                    </>
+                )}
 
-                                            // children[0] = (
-                                            //     children[0] as string
-                                            // ).replace("`▍`", "▍");
-                                            children[0] = (
-                                                children[0] as string
-                                            ).replace("` `", " ");
-                                        }
-
-                                        const match = /language-(\w+)/.exec(
-                                            className || ""
-                                        );
-
-                                        if (inline) {
-                                            return (
-                                                <code
-                                                    className={className}
-                                                    {...props}>
-                                                    {children}
-                                                </code>
-                                            );
-                                        }
-
-                                        return (
-                                            <CodeBlock
-                                                key={Math.random()}
-                                                language={
-                                                    (match && match[1]) || ""
-                                                }
-                                                value={String(children).replace(
-                                                    /\n$/,
-                                                    ""
-                                                )}
-                                                {...props}
-                                            />
-                                        );
-                                    }
+                {useWebSpeech && displayAudio && (
+                    <>
+                        {createPortal(
+                            <div
+                                ref={ttsRef}
+                                className={clsx(
+                                    "absolute right-0 z-[1000] transition-all duration-300 ease-in-out",
+                                    displayAudio ? "opacity-100" : "opacity-0"
+                                )}
+                                style={{
+                                    top: audioPlayerTopPosition,
+                                    transform: "translateY(-10%)"
                                 }}>
-                                {displayedText}
-                            </MemoizedReactMarkdown> */}
-                        </div>
-                    </ErrorBoundary>
+                                <WebTTS
+                                    messageId={message.id}
+                                    text={displayedText}
+                                    audioInProgress={audioIsInProgress}
+                                    setAudioInProgress={setAudioIsInProgress}
+                                    displayAudioPlayer={setDisplayAudio}
+                                />
+                            </div>,
+                            document.getElementById(
+                                `message-container-${message.id}`
+                            )
+                        )}
+                    </>
                 )}
             </div>
-
-            {useWebSpeech && displayAudio && (
-                <>
-                    {createPortal(
-                        <div
-                            ref={ttsRef}
-                            className={clsx(
-                                "absolute right-0 z-[1000] transition-all duration-300 ease-in-out",
-                                displayAudio ? "opacity-100" : "opacity-0"
-                            )}
-                            style={{
-                                top: audioPlayerTopPosition,
-                                transform: "translateY(-10%)"
-                            }}>
-                            <WebTTS
-                                messageId={message.id}
-                                text={displayedText}
-                                audioInProgress={audioIsInProgress}
-                                setAudioInProgress={setAudioIsInProgress}
-                                displayAudioPlayer={setDisplayAudio}
-                            />
-                        </div>,
-                        document.getElementById(
-                            `message-container-${message.id}`
-                        )
-                    )}
-                </>
-            )}
-        </div>
-        // </AudioProvider>
+        </AudioProvider>
     );
 }
 

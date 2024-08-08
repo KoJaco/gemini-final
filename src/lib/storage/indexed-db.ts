@@ -1,9 +1,14 @@
-import type { ChatThread, Message, ThreadSummary } from "@/lib/types";
+import type {
+    AudioData,
+    ChatThread,
+    Message,
+    ThreadSummary
+} from "@/lib/types";
 
 const DB_NAME = "ChatDB";
 const DB_VERSION = 1;
 const THREAD_STORE = "threads";
-
+const AUDIO_STORE = "audioData";
 const SUMMARY_STORE = "summaries";
 
 type ResultSet = {
@@ -31,6 +36,15 @@ export function openDatabase(): Promise<IDBDatabase> {
             if (!db.objectStoreNames.contains(SUMMARY_STORE)) {
                 db.createObjectStore(SUMMARY_STORE, {
                     keyPath: "threadId"
+                });
+            }
+
+            if (!db.objectStoreNames.contains(AUDIO_STORE)) {
+                const messageStore = db.createObjectStore(AUDIO_STORE, {
+                    keyPath: "audioId"
+                });
+                messageStore.createIndex("messageId", "messageId", {
+                    unique: false
                 });
             }
         };
@@ -239,15 +253,39 @@ export async function removeThread(threadId: string): Promise<ResultSet> {
     });
 }
 
+// Would be better if messages were in their own store... just makes everything else a big refactor though.
+
+// export async function updateMessageOnThread(
+//     threadId: string,
+//     message: Message
+// ): Promise<ResultSet> {
+//     const db = await openDatabase();
+//     const transaction = db.transaction([THREAD_STORE], "readwrite");
+//     const store = transaction.objectStore(THREAD_STORE);
+// }
+
 export async function updateThread(
     threadId: string,
-    newMessage: Message
+    newMessage: Message,
+    audioData?: AudioData
 ): Promise<ResultSet> {
     const db = await openDatabase();
-    const transaction = db.transaction([THREAD_STORE], "readwrite");
-    const store = transaction.objectStore(THREAD_STORE);
 
-    const request = store.get(threadId);
+    let transaction: IDBTransaction;
+    let threadStore: IDBObjectStore;
+    let audioStore: IDBObjectStore | null;
+
+    if (audioData) {
+        transaction = db.transaction([THREAD_STORE, AUDIO_STORE], "readwrite");
+        threadStore = transaction.objectStore(THREAD_STORE);
+        audioStore = transaction.objectStore(AUDIO_STORE);
+    } else {
+        transaction = db.transaction([THREAD_STORE, AUDIO_STORE], "readwrite");
+        threadStore = transaction.objectStore(THREAD_STORE);
+        audioStore = null;
+    }
+
+    const request = threadStore.get(threadId);
 
     return new Promise((resolve, reject) => {
         request.onsuccess = async () => {
@@ -257,31 +295,84 @@ export async function updateThread(
                 thread.messages.push(newMessage);
                 thread.updatedAt = new Date().toISOString();
 
-                store.put(thread);
+                if (audioStore && audioData) {
+                    // with audio
+                    const messageRequest = threadStore.put(thread);
+                    messageRequest.onsuccess = () => {
+                        const audioRequest = audioStore.put(audioData);
 
-                transaction.oncomplete = function () {
-                    resolve({
-                        success: true,
-                        status: "Success",
-                        message: "Successfully updated thread with new message"
-                    });
-                };
+                        audioRequest.onsuccess = () => {
+                            transaction.oncomplete = () => {
+                                resolve({
+                                    success: true,
+                                    status: "Success",
+                                    message:
+                                        "Successfully updated thread with new message and audio data"
+                                });
+                            };
 
-                transaction.onerror = function (event) {
-                    resolve({
-                        success: false,
-                        status: "Error",
-                        message: `Transaction failed. Event: ${event.type}`
-                    });
-                };
+                            transaction.onerror = (event) => {
+                                resolve({
+                                    success: false,
+                                    status: "Error",
+                                    message: `Transaction failed. Event: ${event.type}`
+                                });
+                            };
 
-                transaction.onabort = function (event) {
-                    resolve({
-                        success: false,
-                        status: "Abort",
-                        message: `Transaction aborted: Event: ${event.type}`
-                    });
-                };
+                            transaction.onabort = (event) => {
+                                resolve({
+                                    success: false,
+                                    status: "Abort",
+                                    message: `Transaction aborted: Event: ${event.type}`
+                                });
+                            };
+                        };
+
+                        audioRequest.onerror = () => {
+                            reject({
+                                success: false,
+                                status: "Error",
+                                message: `Failed to save audio data. Error: ${audioRequest.error}`
+                            });
+                        };
+                    };
+
+                    messageRequest.onerror = () => {
+                        reject({
+                            success: false,
+                            status: "Error",
+                            message: `Failed to update thread. Error: ${messageRequest.error}`
+                        });
+                    };
+                } else {
+                    // without audio
+                    threadStore.put(thread);
+
+                    transaction.oncomplete = function () {
+                        resolve({
+                            success: true,
+                            status: "Success",
+                            message:
+                                "Successfully updated thread with new message"
+                        });
+                    };
+
+                    transaction.onerror = function (event) {
+                        resolve({
+                            success: false,
+                            status: "Error",
+                            message: `Transaction failed. Event: ${event.type}`
+                        });
+                    };
+
+                    transaction.onabort = function (event) {
+                        resolve({
+                            success: false,
+                            status: "Abort",
+                            message: `Transaction aborted: Event: ${event.type}`
+                        });
+                    };
+                }
             } else {
                 resolve({
                     success: false,
@@ -381,6 +472,54 @@ export async function getAllThreads(): Promise<ChatThread[] | undefined> {
 
         request.onerror = (event) => {
             reject(event);
+        };
+    });
+}
+
+// AUDIO stuff
+
+export async function saveAudioData(audioData: AudioData): Promise<ResultSet> {
+    const db = await openDatabase();
+    const transaction = db.transaction(["audioData"], "readwrite");
+    const store = transaction.objectStore("audioData");
+
+    return new Promise((resolve, reject) => {
+        const request = store.put(audioData);
+
+        request.onsuccess = () => {
+            resolve({
+                success: true,
+                status: "Success",
+                message: "Audio data saved successfully"
+            });
+        };
+
+        request.onerror = () => {
+            reject({
+                success: false,
+                status: "Error",
+                message: request.error?.message || "Failed to save audio data"
+            });
+        };
+    });
+}
+
+export async function getAudioDataByMessageId(
+    messageId: string
+): Promise<AudioData | undefined> {
+    const db = await openDatabase();
+    const transaction = db.transaction([AUDIO_STORE], "readonly");
+    const store = transaction.objectStore(AUDIO_STORE);
+    const index = store.index("messageId");
+    const request = index.get(messageId);
+
+    return new Promise<AudioData | undefined>((resolve, reject) => {
+        request.onsuccess = () => {
+            resolve(request.result as AudioData);
+        };
+
+        request.onerror = () => {
+            reject(request.error);
         };
     });
 }

@@ -63,9 +63,14 @@ export const getTranscription = async (
 
         if (apiKeyRes.success) {
             const formData = new FormData();
-            formData.append("file", audioBlob, "audio.mp3");
+
+            const file = new File([audioBlob], "audio.mpeg", {
+                type: "audio/mpeg"
+            });
+
+            formData.append("file", file);
             formData.append("timestamp_granularities[]", "word");
-            formData.append("timestamp_granularities[]", "sentence");
+            formData.append("timestamp_granularities[]", "segment");
             formData.append("model", "whisper-1");
             formData.append("response_format", "verbose_json");
 
@@ -83,7 +88,7 @@ export const getTranscription = async (
             if (!response.ok) {
                 return {
                     success: false,
-                    message: "Could not parse response from Whisper API",
+                    message: `Could not parse response from Whisper API: ${response}`,
                     transcript: null
                 };
             }
