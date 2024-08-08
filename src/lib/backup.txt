@@ -124,12 +124,9 @@ export interface Message {
         props: Record<string, unknown>;
     };
     createdAt: string; // ISO string
-    threadId: string; // reference to index on message store
-    audioBlob?: Blob;
-    transcript?: any; // update later to correct type
+    threadId: string;
 }
 
-// this interface differs from the database structure...
 export interface ChatThread {
     threadId: string;
     messages: Message[];

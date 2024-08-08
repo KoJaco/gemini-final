@@ -5,6 +5,7 @@ import {
     CardDescription,
     CardTitle
 } from "@/components/ui/card";
+import { CodeBlock } from "@/components/ui/codeblock";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
     getAllThreads,
@@ -14,7 +15,7 @@ import {
 import type { AvailableViews, ChatThread } from "@/lib/types";
 import clsx from "clsx";
 import { CornerUpLeft, Trash } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { memo, useEffect, useState, type FC } from "react";
 
 type Props = {
     setOpenView: (value: AvailableViews) => void;
@@ -165,6 +166,7 @@ export const ThreadsView = ({
                         );
                     })}
                 </ul>
+
                 <ScrollBar orientation="horizontal" />
             </ScrollArea>
             <Button

@@ -19,11 +19,7 @@ import clsx from "clsx";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import WebTts from "../web-tts";
-
 type Props = {
-    geminiApiKey: string | null;
-    whisperApiKey?: string | null;
     setGeminiKey: (value: string) => void;
     setWhisperApiKey: (value: string) => void;
     setApiKeysLoading: (value: boolean) => void;
@@ -40,7 +36,6 @@ const formSchema = z.object({
     geminiApiKey: z.string().min(1, {
         message: "API key must not be blank."
     }),
-    useWhisper: z.boolean().default(false).optional(),
     whisperApiKey: z
         .string()
         .min(1, {
@@ -51,8 +46,6 @@ const formSchema = z.object({
 });
 
 export function ApiEntryForm({
-    geminiApiKey,
-    whisperApiKey,
     setGeminiKey,
     setWhisperApiKey,
     setApiKeysLoading,
@@ -61,15 +54,14 @@ export function ApiEntryForm({
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            geminiApiKey: geminiApiKey || "",
-            useWhisper: false,
-            whisperApiKey: whisperApiKey || null
+            geminiApiKey: "",
+            whisperApiKey: ""
         }
     });
 
     async function onSubmit(data: z.infer<typeof formSchema>) {
         // after validation, submit the API key into secure storage and add it to session (in memory storage).
-        const { geminiApiKey, useWhisper, whisperApiKey } = data;
+        const { geminiApiKey, whisperApiKey } = data;
 
         // Attempt to use the api key and test if it is valid.
         setApiKeysLoading(true);
@@ -115,12 +107,12 @@ export function ApiEntryForm({
 
             return { success: false };
         } finally {
-            if (!useWhisper) {
+            if (whisperApiKey === null || whisperApiKey === "") {
                 setApiKeysLoading(false);
             }
         }
 
-        if (useWhisper && whisperApiKey) {
+        if (whisperApiKey.length > 0) {
             // test response from whisper, check working.
             try {
                 const response = await fetch(
@@ -210,43 +202,15 @@ export function ApiEntryForm({
 
                 <FormField
                     control={form.control}
-                    name="useWhisper"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                            <FormControl>
-                                <Checkbox
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
-                                />
-                            </FormControl>
-                            <div className="space-y-1 leading-1">
-                                <FormLabel>
-                                    I want better text-to-speech
-                                </FormLabel>
-                                <FormDescription>
-                                    By default this extension uses the native
-                                    browser Web Speech API for reading out
-                                    Gemini's messages. Check this text box if
-                                    you would like better text-to-speech
-                                    functionality by using the OpenAI Whisper
-                                    API.
-                                </FormDescription>
-                            </div>
-                        </FormItem>
-                    )}
-                />
-
-                <FormField
-                    control={form.control}
                     name="whisperApiKey"
                     render={({ field }) => (
-                        <FormItem
-                            className={clsx(
-                                form.getValues("useWhisper")
-                                    ? ""
-                                    : "pointer-events-none opacity-50"
-                            )}>
-                            <FormLabel>Whisper API Key</FormLabel>
+                        <FormItem>
+                            <FormLabel>
+                                Whisper API Key{" "}
+                                <span className="ml-auto text-muted-foreground/50">
+                                    (optional)
+                                </span>
+                            </FormLabel>
                             <FormControl>
                                 <Input
                                     placeholder="sk-proj-VEc..."

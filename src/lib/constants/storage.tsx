@@ -19,7 +19,7 @@ export const defaultPreferences: Preferences = {
         }
     },
     applicationSettings: {
-        translateToLanguage: null,
+        translateToLanguage: { value: { id: "en-AU", language: "english" } },
         useWebSpeech: true
     }
 };

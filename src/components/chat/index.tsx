@@ -108,6 +108,7 @@ const Chat = ({
 }) => {
     const { setTypewriter, geminiApiKey, whisperApiKey, preferencesState } =
         useAppStore();
+    // console.log(preferencesState);
     const characteristicsPreference =
         preferencesState.aiSettings.characteristics.value;
     const interactionsPreference =
@@ -187,7 +188,7 @@ const Chat = ({
 
         // TODO: grab from preferences object
         const languagePreference =
-            preferencesState.applicationSettings[0].translateToLanguage.value
+            preferencesState.applicationSettings.translateToLanguage.value
                 .language;
 
         const systemMessage = menuOptionToPrompt[title].action;
@@ -608,13 +609,13 @@ const Chat = ({
         if (identifier === "summarize-page") {
             // This can be handled by simply asking Gemini to look it up and summarize it.
             // Insert context from preferences (how you want Gemini to respond to you... used dummy preference for now)
-            messageToGemini = `Please summarize the website by looking at the following HTML content. Your response should be in correctly formatted markdown and you are to respond with these characteristics: ${characteristicsPreference}. You are also to append the following additions to your response: ${interactionsPreference}\n\n Here is the website's text-based HTML to be summarized: ${pageContent}`;
+            messageToGemini = `Please summarize the website by looking at the following HTML content. You are to respond with these characteristics: ${characteristicsPreference}. You are also to append the following additions to your response: ${interactionsPreference}\n\n Here is the website's text-based HTML to be summarized: ${pageContent}`;
         } else if (identifier === "main-purpose") {
             // This prompt asks Gemini to identify the main purpose of the webpage
-            messageToGemini = `What is the main purpose or goal of this webpage? Your response should be in correctly formatted markdown and you are to respond with these characteristics: ${characteristicsPreference}. You are also to append the following additions to your response: ${interactionsPreference}\n\nHere is the website's text-based HTML: ${pageContent}`;
+            messageToGemini = `What is the main purpose or goal of this webpage? You are to respond with these characteristics: ${characteristicsPreference}. You are also to append the following additions to your response: ${interactionsPreference}\n\nHere is the website's text-based HTML: ${pageContent}`;
         } else if (identifier === "explain-complex-terms") {
             // This prompt asks Gemini to explain any complex terms found on the webpage
-            messageToGemini = `Identify and explain any complex terms or concepts found in the following HTML content. Your response should be in correctly formatted markdown and you are to respond with these characteristics: ${characteristicsPreference}. You are also to append the following additions to your response: ${interactionsPreference}\n\nHere is the website's text-based HTML: ${pageContent}`;
+            messageToGemini = `Identify and explain any complex terms or concepts found in the following HTML content. You are to respond with these characteristics: ${characteristicsPreference}. You are also to append the following additions to your response: ${interactionsPreference}\n\nHere is the website's text-based HTML: ${pageContent}`;
         }
 
         updateThread(thread.threadId, newUserMessage).then((resultSet) => {

@@ -34,7 +34,7 @@ export function MainView({
                 className="h-3/4 w-full flex flex-1 flex-col gap-y-4 overflow-y-auto p-4">
                 {currentChatThread ? (
                     <>
-                        <div ref={messagesRef}>
+                        <div ref={messagesRef} className="w-full flex flex-col">
                             {currentChatThread.messages &&
                                 currentChatThread.messages.map(
                                     (message, index) => {

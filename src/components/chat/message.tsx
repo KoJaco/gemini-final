@@ -22,11 +22,15 @@ import type { Message } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import clsx from "clsx";
 import { AudioLines, MonitorCog } from "lucide-react";
+import Markdown, { type MarkdownToJSX } from "markdown-to-jsx";
 import React, { memo, useEffect, useRef, useState, type FC } from "react";
 import { createPortal } from "react-dom";
-import ReactMarkdown, { type Options } from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
+
+// import ReactMarkdown, { type Options } from "react-markdown";
+// import remarkGfm from "remark-gfm";
+// import remarkMath from "remark-math";
+
+// import remarkMath from "remark-math";
 
 import { Button } from "../ui/button";
 import { IconGemini, IconUser } from "../ui/icons";
@@ -66,6 +70,8 @@ export function ChatMessage({
     const { typewriter, setTypewriter, preferencesState } = useAppStore();
 
     const { useWebSpeech } = preferencesState.applicationSettings;
+
+    // console.log(remarkPlugins);
 
     useEffect(() => {
         if (typewriter) {
@@ -160,13 +166,22 @@ export function ChatMessage({
 
     // TODO: add automatic scroll to when audio is playing... should following transcript.
 
+    // TODO: Error in rendering markdown... not working with external links and code... ?????
+
+    // TODO: Memoize markdown
+
+    if (typeof displayedText !== "string") {
+        console.error("displayedText is not a string: ", displayedText);
+        return null;
+    }
+
     return (
         // <AudioProvider>
         <div
             id={`message-container-${message.id}`}
             ref={messageContainerRef}
             className={cn(
-                "group w-full mb-10 items-start h-auto relative flex flex-col overflow-x-hidden transition-all duration-300"
+                "group w-full mb-10 items-start h-auto relative flex flex-col overflow-x-hidden transition-all duration-300 max-w-full"
             )}
             onMouseEnter={() => setDisplayAudio(true)}
             onMouseLeave={handleMouseLeave}
@@ -244,71 +259,150 @@ export function ChatMessage({
                         }>
                         <div
                             id={`text-content-${message.id}`}
-                            className="h-full w-full prose dark:prose-invert break-words prose-p:leading-relaxed prose-pre:p-0 text-wrap whitespace-normal markdown prose-p:last:mb-0 prose-p:mb-2">
-                            <MemoizedReactMarkdown
+                            className="h-full w-full prose dark:prose-invert break-words prose-p:leading-relaxed prose-pre:p-0 text-wrap whitespace-normal prose-p:last:mb-0 prose-p:mb-2">
+                            <Markdown
+                                options={{
+                                    overrides: {
+                                        p: {
+                                            component: ({
+                                                children,
+                                                ...props
+                                            }) => {
+                                                return (
+                                                    <p {...props}>{children}</p>
+                                                );
+                                            },
+                                            props: {
+                                                className: "mb-2 last:mb-0"
+                                            }
+                                        },
+                                        code: {
+                                            component: ({
+                                                node,
+                                                inline,
+                                                className,
+                                                children,
+                                                ...props
+                                            }) => {
+                                                if (children.length) {
+                                                    if (children[0] == "▍") {
+                                                        return (
+                                                            <span className="mt-1 cursor-default animate-pulse">
+                                                                ▍
+                                                            </span>
+                                                        );
+                                                    }
+
+                                                    children[0] = (
+                                                        children[0] as string
+                                                    ).replace("`▍`", "▍");
+                                                    // children[0] = (
+                                                    //     children[0] as string
+                                                    // ).replace("` `", " ");
+                                                }
+
+                                                const match =
+                                                    /language-(\w+)/.exec(
+                                                        className || ""
+                                                    );
+
+                                                if (inline) {
+                                                    return (
+                                                        <code
+                                                            className={
+                                                                className
+                                                            }
+                                                            {...props}>
+                                                            {children}
+                                                        </code>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <CodeBlock
+                                                        key={Math.random()}
+                                                        language={
+                                                            (match &&
+                                                                match[1]) ||
+                                                            ""
+                                                        }
+                                                        value={String(
+                                                            children
+                                                        ).replace(/\n$/, "")}
+                                                        {...props}
+                                                    />
+                                                );
+                                            }
+                                        }
+                                    }
+                                }}>
+                                {displayedText}
+                            </Markdown>
+                            {/* <MemoizedReactMarkdown
                                 remarkPlugins={[remarkGfm, remarkMath]}
                                 components={{
                                     p({ children }) {
                                         return (
-                                            <p
-                                                id="text-content"
-                                                className="mb-2 last:mb-0">
+                                            <p className="mb-2 last:mb-0">
                                                 {children}
                                             </p>
                                         );
+                                    },
+                                    code({
+                                        node,
+                                        inline,
+                                        className,
+                                        children,
+                                        ...props
+                                    }) {
+                                        if (children.length) {
+                                            if (children[0] == "▍") {
+                                                return (
+                                                    <span className="mt-1 cursor-default animate-pulse">
+                                                        ▍
+                                                    </span>
+                                                );
+                                            }
+
+                                            // children[0] = (
+                                            //     children[0] as string
+                                            // ).replace("`▍`", "▍");
+                                            children[0] = (
+                                                children[0] as string
+                                            ).replace("` `", " ");
+                                        }
+
+                                        const match = /language-(\w+)/.exec(
+                                            className || ""
+                                        );
+
+                                        if (inline) {
+                                            return (
+                                                <code
+                                                    className={className}
+                                                    {...props}>
+                                                    {children}
+                                                </code>
+                                            );
+                                        }
+
+                                        return (
+                                            <CodeBlock
+                                                key={Math.random()}
+                                                language={
+                                                    (match && match[1]) || ""
+                                                }
+                                                value={String(children).replace(
+                                                    /\n$/,
+                                                    ""
+                                                )}
+                                                {...props}
+                                            />
+                                        );
                                     }
-                                    // code({
-                                    //     node,
-                                    //     inline,
-                                    //     className,
-                                    //     children,
-                                    //     ...props
-                                    // }) {
-                                    //     if (children.length) {
-                                    //         if (children[0] == "▍") {
-                                    //             return (
-                                    //                 <span className="mt-1 cursor-default animate-pulse">
-                                    //                     ▍
-                                    //                 </span>
-                                    //             );
-                                    //         }
-
-                                    //         children[0] = (
-                                    //             children[0] as string
-                                    //         ).replace("`▍`", "▍");
-                                    //     }
-
-                                    //     const match = /language-(\w+)/.exec(
-                                    //         className || ""
-                                    //     );
-
-                                    //     if (inline) {
-                                    //         return (
-                                    //             <code
-                                    //                 className={className}
-                                    //                 {...props}>
-                                    //                 {children}
-                                    //             </code>
-                                    //         );
-                                    //     }
-
-                                    //     return (
-                                    //         <CodeBlock
-                                    //             key={Math.random()}
-                                    //             language={
-                                    //                 (match && match[1]) ||
-                                    //                 ""
-                                    //             }
-                                    //             value={String(
-                                    //                 children
-                                    //             ).replace(/\n$/, "")}
-                                    //             {...props}
-                                    //         />
-                                    //     );
-                                    // }
                                 }}>
                                 {displayedText}
-                            </MemoizedReactMarkdown>
+                            </MemoizedReactMarkdown> */}
                         </div>
                     </ErrorBoundary>
                 )}
@@ -346,9 +440,12 @@ export function ChatMessage({
     );
 }
 
-const MemoizedReactMarkdown: FC<Options> = memo(
-    ReactMarkdown,
-    (prevProps, nextProps) =>
-        prevProps.children === nextProps.children &&
-        prevProps.className === nextProps.className
-);
+// const MemoizedReactMarkdown: FC<Options> = memo(
+//     ReactMarkdown,
+//     (prevProps, nextProps) => {
+//         return (
+//             prevProps.children === nextProps.children &&
+//             prevProps.className === nextProps.className
+//         );
+//     }
+// );

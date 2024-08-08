@@ -22,7 +22,7 @@ import {
     savePreferences
 } from "@/lib/storage/secure";
 import { useAppStore } from "@/lib/stores/appStore";
-import type { AvailableViews, ChatThread } from "@/lib/types";
+import type { AvailableViews, ChatThread, Message } from "@/lib/types";
 import clsx from "clsx";
 import { nanoid } from "nanoid";
 import React, { useEffect, useState } from "react";
@@ -57,39 +57,30 @@ const Sidepanel = () => {
         setGeminiApiKey,
         whisperApiKey,
         setWhisperAPIKey,
+        preferencesState,
         savePreferencesState
     } = useAppStore();
 
     useEffect(() => {
-        const initApp = async () => {
+        const initDefaults = async () => {
             try {
-                setLoading(true);
-                // fetch api keys
-                const geminiResponse = await getApiKey("googleGeminiApiKey");
-                const whisperResponse = await getApiKey("whisperApiKey");
+                if (preferencesState !== null) return;
 
-                if (geminiResponse.success && geminiResponse.data) {
-                    setGeminiApiKey(geminiResponse.data);
-                } else {
-                    // handle this accordingly, user cannot interact with application... push to form
-                    console.error(geminiResponse.error);
-                }
-
-                if (whisperResponse.success && whisperResponse.data) {
-                    setWhisperAPIKey(whisperResponse.data);
-                } else {
-                    // (optional) so can continue
-                    setWhisperAPIKey(null);
-                }
+                if (currentChatThread !== null) return;
 
                 // fetch latest thread (Current Chat)
                 const latestThread = await getLatestThread();
 
                 if (latestThread !== undefined) {
                     setCurrentChatThread(latestThread);
+                    console.log(
+                        "Set initial chat thread as the latest found: ",
+                        latestThread
+                    );
                 } else {
                     // create new thread and set
                     const id = nanoid();
+
                     const newThread: ChatThread = {
                         threadId: id,
                         messages: [
@@ -110,7 +101,87 @@ const Sidepanel = () => {
                     if (res.success) {
                         setCurrentChatThread(newThread);
                     } else {
-                        console.log(res.message);
+                        console.error(
+                            "Something went wrong while attempting to set an initial chat thread: ",
+                            res
+                        );
+                    }
+                }
+
+                // fetch preferences
+
+                const preferencesResponse =
+                    await savePreferences(defaultPreferences);
+
+                if (preferencesResponse.success) {
+                    savePreferencesState(defaultPreferences);
+                } else {
+                    console.error(
+                        "Could not set default preferences, something went wrong! ",
+                        preferencesResponse
+                    );
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        };
+
+        initDefaults();
+    }, []);
+
+    useEffect(() => {
+        const initApp = async () => {
+            try {
+                setLoading(true);
+                // fetch api keys
+                const geminiResponse = await getApiKey("googleGeminiApiKey");
+                const whisperResponse = await getApiKey("whisperApiKey");
+
+                if (geminiResponse.success && geminiResponse.data) {
+                    setGeminiApiKey(geminiResponse.data);
+                } else {
+                    // handle this accordingly, user cannot interact with application... push to form
+                    console.warn(geminiResponse.error);
+                    return; // return out before other functions complete
+                }
+
+                if (whisperResponse.success && whisperResponse.data) {
+                    setWhisperAPIKey(whisperResponse.data);
+                } else {
+                    // (optional) so can continue
+                    setWhisperAPIKey(null);
+                }
+
+                // fetch latest thread (Current Chat)
+                const latestThread = await getLatestThread();
+
+                if (latestThread !== undefined) {
+                    setCurrentChatThread(latestThread);
+                } else {
+                    // create new thread and set
+                    const id = nanoid();
+
+                    const newThread: ChatThread = {
+                        threadId: id,
+                        messages: [
+                            {
+                                role: "assistant",
+                                content:
+                                    "Hey! I'm your personal AI assistant trying to make the web a more accessible place for all. Ask me anything!",
+                                id: `msg-open`,
+                                createdAt: new Date().toISOString(),
+                                threadId: id
+                            }
+                        ],
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                    };
+                    const res = await createNewChatThread(newThread);
+
+                    if (res.success) {
+                        setCurrentChatThread(newThread);
+                    } else {
+                        console.error(res.message);
                     }
                 }
 
@@ -266,7 +337,6 @@ const Sidepanel = () => {
 
                                 <CardContent>
                                     <ApiEntryForm
-                                        geminiApiKey={geminiApiKey}
                                         setGeminiKey={setGeminiApiKey}
                                         setWhisperApiKey={setWhisperAPIKey}
                                         setApiKeysLoading={setApiKeysLoading}

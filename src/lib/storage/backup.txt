@@ -3,7 +3,7 @@ import type { ChatThread, Message, ThreadSummary } from "@/lib/types";
 const DB_NAME = "ChatDB";
 const DB_VERSION = 1;
 const THREAD_STORE = "threads";
-
+const MESSAGE_STORE = "messages";
 const SUMMARY_STORE = "summaries";
 
 type ResultSet = {
@@ -32,6 +32,14 @@ export function openDatabase(): Promise<IDBDatabase> {
                 db.createObjectStore(SUMMARY_STORE, {
                     keyPath: "threadId"
                 });
+            }
+
+            // unique true?
+            if (!db.objectStoreNames.contains("messages")) {
+                const store = db.createObjectStore(MESSAGE_STORE, {
+                    keyPath: "messageId"
+                });
+                store.createIndex("threadId", "threadId", { unique: false });
             }
         };
 
