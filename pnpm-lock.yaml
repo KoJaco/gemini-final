@@ -136,6 +136,9 @@ devDependencies:
   '@types/chrome':
     specifier: 0.0.258
     version: 0.0.258
+  '@types/dom-speech-recognition':
+    specifier: ^0.0.4
+    version: 0.0.4
   '@types/jest':
     specifier: ^29.5.12
     version: 29.5.12
@@ -5216,6 +5219,10 @@ packages:
     dependencies:
       '@types/filesystem': 0.0.36
       '@types/har-format': 1.2.15
+    dev: true
+
+  /@types/dom-speech-recognition@0.0.4:
+    resolution: {integrity: sha512-zf2GwV/G6TdaLwpLDcGTIkHnXf8JEf/viMux+khqKQKDa8/8BAUtXXZS563GnvJ4Fg0PBLGAaFf2GekEVSZ6GQ==}
     dev: true
 
   /@types/estree@1.0.5:

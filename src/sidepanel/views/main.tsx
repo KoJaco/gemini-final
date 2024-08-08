@@ -3,6 +3,7 @@ import Chat from "@/components/chat";
 import { ChatMessage } from "@/components/chat/message";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+// import { HighlightProvider } from "@/lib/providers/text-highlight-provider";
 import type { ChatThread } from "@/lib/types";
 import { Fragment, useState } from "react";
 

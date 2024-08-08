@@ -18,6 +18,10 @@ import {
     type PlayerAPI
 } from "@/lib/providers/audio-provider";
 import {
+    HighlightProvider,
+    useHighlight
+} from "@/lib/providers/text-highlight-provider";
+import {
     getAudioDataByMessageId,
     saveAudioData
 } from "@/lib/storage/indexed-db";
@@ -72,16 +76,24 @@ export function ChatMessage({
     // TODO: add another state for transcription loading?
 
     const [currentAudio, setCurrentAudio] = useState<AudioData | null>(null);
-    const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+
+    // refs
 
     const messageContainerRef = useRef<HTMLDivElement | null>(null);
     const ttsRef = useRef<HTMLDivElement | null>(null);
 
+    // global state
+
     const { typewriter, setTypewriter, preferencesState } = useAppStore();
+
+    // Context for highlight... TTS should be merged into audio player with a provider for all of this... very ugly at the moment.
+    const [messageCharIndex, setMessageCharIndex] = useState(0);
+
+    // consts
 
     const { useWebSpeech } = preferencesState.applicationSettings;
 
-    // console.log(remarkPlugins);
+    // typewriter... get this working properly... it's just straight without any bounciness.
 
     useEffect(() => {
         if (typewriter) {
@@ -109,23 +121,6 @@ export function ChatMessage({
         }
     }, [currentIndex, speed, message]);
 
-    // async function handleTextToSpeech(text: string) {
-    //     /**
-    //      * 1. Check whether the user is on Web Speech or is using Whisper (if Web Speech then render out web-tts component and pass text...)
-    //      * 2. Check if an audio blob exists for the current message in the database, if so then setCurrentAudio to that in globalAppState.
-    //      * 3. If no audio blob exists fro the current message, request one from whisperAPI and handle the resulting flow (set an error if necessary)
-    //      * 4.
-    //      */
-
-    //     const res = await requestTTS(text);
-
-    //     if (res.success) {
-    //         const { data } = res;
-    //     } else {
-    //         console.log(res);
-    //     }
-    // }
-
     // TODO: make this a hook...
 
     function debounce(func: Function, wait: number) {
@@ -139,6 +134,8 @@ export function ChatMessage({
             }, wait);
         };
     }
+
+    // TODO: probably shouldn't be tracking this... update according to char index / where we are in the transcript relative to boundingClientRect
 
     const handleMouseMove = (event: React.MouseEvent) => {
         const messageContainer = messageContainerRef.current;
@@ -159,8 +156,7 @@ export function ChatMessage({
 
     const debouncedMouseMove = debounce(handleMouseMove, 50);
 
-    // console.log(currentAudio);
-
+    // on audio save, update current audio (local state for each message)
     useEffect(() => {
         const fetchAudio = async () => {
             try {
@@ -223,7 +219,7 @@ export function ChatMessage({
                 transcript: transcript
             };
 
-            console.log(audioData);
+            // console.log(audioData);
 
             const saveResult = await saveAudioData(audioData);
 
@@ -486,6 +482,7 @@ export function ChatMessage({
                                 }}>
                                 <AudioPlayer
                                     showAudioPlayer={setShowAudioPlayer}
+                                    transcript={currentAudio.transcript}
                                 />
                             </div>,
                             document.getElementById(

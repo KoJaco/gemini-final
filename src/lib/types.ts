@@ -161,11 +161,31 @@ export type ResultObject = {
     message?: string;
 };
 
+export interface Transcript {
+    duration: number;
+    language: string;
+    segments: {
+        id: number;
+        avg_logprop: number;
+        compression_ratio: number;
+        no_speech_prob: number;
+        temperature: number;
+        seek: number;
+        start: number;
+        end: number;
+        text: string;
+        tokens: number[];
+    }[];
+    task: string;
+    text: string;
+    words: { word: string; start: number; end: number }[];
+}
+
 export interface AudioData {
     audioId: string;
     messageId: string;
     audioBlob: Blob;
-    transcript?: any;
+    transcript: Transcript | Partial<Transcript> | null;
 }
 
 export interface Audio {

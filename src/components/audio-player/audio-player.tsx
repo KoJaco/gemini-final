@@ -7,30 +7,33 @@ import { PlaybackRateButton } from "@/components/audio-player/playback-rate-butt
 import { RewindButton } from "@/components/audio-player/rewind-button";
 import { Slider } from "@/components/audio-player/slider";
 import { useAudioPlayer } from "@/lib/providers/audio-provider";
+import type { Transcript } from "@/lib/types";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "../ui/button";
 
-// function parseTime(seconds: number) {
-//     let hours = Math.floor(seconds / 3600);
-//     let minutes = Math.floor((seconds - hours * 3600) / 60);
-//     seconds = seconds - hours * 3600 - minutes * 60;
-//     return [hours, minutes, seconds];
-// }
+function parseTime(seconds: number) {
+    let hours = Math.floor(seconds / 3600);
+    let minutes = Math.floor((seconds - hours * 3600) / 60);
+    seconds = seconds - hours * 3600 - minutes * 60;
+    return [hours, minutes, seconds];
+}
 
-// function formatHumanTime(seconds: number) {
-//     let [h, m, s] = parseTime(seconds);
-//     return `${h} hour${h === 1 ? "" : "s"}, ${m} minute${
-//         m === 1 ? "" : "s"
-//     }, ${s} second${s === 1 ? "" : "s"}`;
-// }
+function formatHumanTime(seconds: number) {
+    let [h, m, s] = parseTime(seconds);
+    return `${h} hour${h === 1 ? "" : "s"}, ${m} minute${
+        m === 1 ? "" : "s"
+    }, ${s} second${s === 1 ? "" : "s"}`;
+}
 
 interface Props {
     showAudioPlayer: (value: boolean) => void;
+    transcript: Transcript | Partial<Transcript>;
+    // setCharIndex: (value: number) => void;
 }
 
-export function AudioPlayer({ showAudioPlayer }: Props) {
+export function AudioPlayer({ showAudioPlayer, transcript }: Props) {
     let player = useAudioPlayer();
 
     let wasPlayingRef = useRef(false);

@@ -55,6 +55,7 @@
         "@ianvs/prettier-plugin-sort-imports": "4.1.1",
         "@tailwindcss/typography": "^0.5.13",
         "@types/chrome": "0.0.258",
+        "@types/dom-speech-recognition": "^0.0.4",
         "@types/jest": "^29.5.12",
         "@types/node": "20.11.5",
         "@types/react": "18.2.48",

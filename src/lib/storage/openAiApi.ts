@@ -1,3 +1,4 @@
+import type { Transcript } from "../types";
 import { getApiKey } from "./secure";
 
 // TODO: pass this api key... will all be changed when I move api requests to background script anyway... this is slow.
@@ -57,7 +58,7 @@ export const requestTTS = async (
 
 export const getTranscription = async (
     audioBlob: Blob
-): Promise<{ success: boolean; message: string; transcript: any | null }> => {
+): Promise<{ success: boolean; message: string; transcript: Transcript }> => {
     try {
         const apiKeyRes = await getApiKey("whisperApiKey");
 
