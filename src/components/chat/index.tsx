@@ -106,7 +106,8 @@ const Chat = ({
     setThread: (thread: ChatThread) => void;
     setResponseLoading: (value: boolean) => void;
 }) => {
-    const { setTypewriter, geminiApiKey, preferencesState } = useAppStore();
+    const { setTypewriter, geminiApiKey, preferencesState, setRecording } =
+        useAppStore();
     // console.log(preferencesState);
     const characteristicsPreference =
         preferencesState.aiSettings.characteristics.value;
@@ -130,7 +131,8 @@ const Chat = ({
             action:
                 | "MENU_OPTION_CLICKED"
                 | "GET_PAGE_TEXT_CONTENT"
-                | "TOGGLE_HOVER_MODE";
+                | "TOGGLE_HOVER_MODE"
+                | "STOP_RECORDING";
             payload?: any;
         }) => {
             if (message.action === "MENU_OPTION_CLICKED") {
@@ -160,6 +162,8 @@ const Chat = ({
                 } else {
                     console.error("Menu option somehow didn't exist! ", title);
                 }
+            } else if (message.action === "STOP_RECORDING") {
+                setRecording(false);
             }
         };
 

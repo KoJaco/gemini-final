@@ -7,10 +7,12 @@ import {
 } from "@/components/ui/tooltip";
 import { footerButtons } from "@/lib/constants";
 import { createNewChatThread } from "@/lib/storage/indexed-db";
+import { useAppStore } from "@/lib/stores/appStore";
 import type { AvailableViews, ChatThread } from "@/lib/types";
 import clsx from "clsx";
+import { Mic } from "lucide-react";
 import { nanoid } from "nanoid";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 type Props = {
     currentView: AvailableViews;
@@ -24,13 +26,23 @@ const SidepanelFooter = ({
     setCurrentChatThread
 }: Props) => {
     const [hoverMode, setHoverMode] = useState<boolean>(false);
+    const { preferencesState, setRecording, recording } = useAppStore();
+
+    useEffect(() => {
+        if (
+            preferencesState.applicationSettings.useVoiceCommandsOnHoverMode &&
+            !recording
+        ) {
+            setHoverMode(false);
+        }
+    }, [recording]);
 
     async function handleToggleHoverMode() {
         // TODO: Extrapolate response return types out into appropriate types (success only, success with message, success with data)
         const response: { success: boolean } = await chrome.runtime.sendMessage(
             {
                 action: "TOGGLE_HOVER_MODE",
-                payload: !hoverMode
+                payload: { hoverMode: !hoverMode, voiceCommands: null }
             }
         );
 
@@ -38,6 +50,21 @@ const SidepanelFooter = ({
             setHoverMode(!hoverMode);
         } else {
             console.warn("Error toggling hover mode.");
+        }
+    }
+
+    async function handleToggleHoverVoiceCommands() {
+        const response: { success: boolean; message?: string } =
+            await chrome.runtime.sendMessage({
+                action: "TOGGLE_HOVER_MODE_WITH_VOICE_COMMANDS",
+                payload: { hoverMode: !hoverMode, voiceCommands: !hoverMode }
+            });
+
+        if (response?.success) {
+            setHoverMode(!hoverMode);
+            setRecording(!hoverMode);
+        } else {
+            console.warn("Error toggling hover mode with voice commands");
         }
     }
 
@@ -52,7 +79,14 @@ const SidepanelFooter = ({
                 }
                 break;
             case "hover-mode":
-                handleToggleHoverMode();
+                if (
+                    preferencesState.applicationSettings
+                        .useVoiceCommandsOnHoverMode
+                ) {
+                    handleToggleHoverVoiceCommands();
+                } else {
+                    handleToggleHoverMode();
+                }
                 break;
             case "all-threads":
                 setCurrentView(identifier);
@@ -109,18 +143,14 @@ const SidepanelFooter = ({
                 <Tooltip key={button.labelName}>
                     <TooltipTrigger>
                         <div
-                            // name={button.labelName}
                             aria-label={button.labelName}
                             role="button"
-                            // type="button"
-                            // variant="ghost"
-                            // size="icon"
                             className={clsx(
                                 buttonVariants({
                                     variant: "ghost",
                                     size: "icon"
                                 }),
-                                "text-muted-foreground hover:scale-105 transition-all duration-300",
+                                "text-muted-foreground hover:scale-105 transition-all duration-300 relative",
                                 button.labelName === "hover-mode"
                                     ? `${
                                           hoverMode
@@ -133,6 +163,27 @@ const SidepanelFooter = ({
                                 determineButtonFunction(button.labelName)
                             }>
                             {button.icon}
+
+                            {button.labelName === "hover-mode" &&
+                                preferencesState.applicationSettings
+                                    .useVoiceCommandsOnHoverMode && (
+                                    <Mic className="" />
+                                )}
+
+                            {/* <span
+                                className={clsx(
+                                    preferencesState.applicationSettings
+                                        .useVoiceCommandsOnHoverMode &&
+                                        button.labelName === "hover-mode" &&
+                                        "scale-90 -translate-x-[6px] -translate-y-[6px] relative"
+                                )}>
+                                {button.icon}
+                            </span>
+                            {button.labelName === "hover-mode" &&
+                                preferencesState.applicationSettings
+                                    .useVoiceCommandsOnHoverMode && (
+                                    <Mic className="absolute w-4 h-4 bottom-0.5 right-0.5" />
+                                )} */}
                         </div>
                     </TooltipTrigger>
                     <TooltipContent className="max-w-[200px] bg-background text-muted-foreground shadow text-md border border-muted-foreground/20">

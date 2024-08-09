@@ -64,6 +64,36 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
                     );
                     return true; // async res
 
+                case "TOGGLE_HOVER_MODE_WITH_VOICE_COMMANDS":
+                    chrome.tabs.query(
+                        { active: true, currentWindow: true },
+                        (tabs) => {
+                            chrome.tabs.sendMessage(
+                                tabs[0].id,
+                                {
+                                    action: "TOGGLE_HOVER_MODE_WITH_VOICE_COMMANDS",
+                                    payload: message.payload // {hoverMode: boolean, voiceCommands: boolean}
+                                },
+                                (response) => {
+                                    if (chrome.runtime.lastError) {
+                                        console.error(
+                                            chrome.runtime.lastError.message
+                                        );
+
+                                        sendResponse({
+                                            success: false,
+                                            message:
+                                                chrome.runtime.lastError.message
+                                        });
+                                    }
+                                    sendResponse({ success: true });
+                                }
+                            );
+                        }
+                    );
+
+                    return true;
+
                 case "GET_PAGE_TEXT_CONTENT":
                     chrome.tabs.query(
                         { active: true, currentWindow: true },
@@ -88,6 +118,10 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
                             );
                         }
                     );
+                    return true;
+
+                case "STOP_RECORDING":
+                    sendResponse({ success: true });
                     return true;
 
                 case "MENU_OPTION_CLICKED":

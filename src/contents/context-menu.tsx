@@ -9,8 +9,8 @@ import {
     ListChecks,
     ListFilter,
     ListRestart,
-    ScanSearch,
-    ScrollText
+    Mic,
+    ScanSearch
 } from "lucide-react";
 import type { PlasmoCSConfig } from "plasmo";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -32,20 +32,19 @@ console.log("content script loaded");
 
 type MenuOptionTitle =
     | "Describe"
-    | "Describe and Read Aloud"
     | "Describe and Translate"
     | "Summarize"
     | "Simplify"
     | "Explain"
     | "Translate"
-    | "Summarize and Translate"
-    | "Read aloud";
+    | "Summarize and Translate";
 
 const ContextMenu = () => {
     // TODO: Add personal prompt that someone can ask about a certain hovered section.
     // TODO: edge cases :: 1. hovering over a section that includes multiple images, 2. describing multiple images,
     // TODO: fix styling bugs (with context menu popup, text colour taking on websites, inline-script blocked by CORS, )
     const [hoverMode, setHoverMode] = useState(false);
+    const [listening, setListening] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const [menuOptions, setMenuOptions] = useState<{
@@ -58,7 +57,13 @@ const ContextMenu = () => {
     const menuRef = useRef<HTMLDivElement | null>(null);
 
     const handleToggleHoverMode = useCallback((value) => {
-        setHoverMode(value);
+        const { hoverMode, voiceCommands } = value;
+        if (voiceCommands !== null) {
+            setHoverMode(hoverMode);
+            setListening(voiceCommands);
+        } else {
+            setHoverMode(hoverMode);
+        }
     }, []);
 
     const handleSetIsOverMenu = useCallback((value: boolean) => {
@@ -120,19 +125,6 @@ const ContextMenu = () => {
             const blob = await response.blob();
             const mimeType = blob.type;
 
-            // const base64EncodedDataPromise = new Promise((resolve, reject) => {
-            //     const reader = new FileReader();
-            //     reader.onloadend = () => {
-            //         const base64String = reader.result as string;
-            //         resolve(base64String.split(',')[1])
-            //     }
-            //     reader.readAsDataU
-            // })
-
-            // return {
-
-            // }
-
             return new Promise<{ data: string; mimeType: string }>(
                 (resolve, reject) => {
                     const reader = new FileReader();
@@ -154,6 +146,26 @@ const ContextMenu = () => {
             console.warn("Error in fetching image... report this");
             return { data: "", mimeType: "" };
         }
+    };
+
+    const handleStopRecording = async () => {
+        chrome.runtime.sendMessage(
+            {
+                action: "STOP_RECORDING"
+            },
+            (response) => {
+                console.log("Stop recording triggered", response);
+            }
+        );
+
+        if (highlightedElementRef.current) {
+            highlightedElementRef.current.style.border = "";
+            highlightedElementRef.current = null;
+        }
+
+        setListening(false);
+        setHoverMode(false);
+        setIsVisible(false);
     };
 
     const sendMessage = async (menuOption: MenuOptionTitle) => {
@@ -184,7 +196,6 @@ const ContextMenu = () => {
                 case "Simplify":
                 case "Translate":
                 case "Summarize and Translate":
-                case "Read aloud":
                     data.content = element.innerText;
                     break;
                 case "Explain":
@@ -211,13 +222,18 @@ const ContextMenu = () => {
             // content menu specific
             if (message.action === "TOGGLE_HOVER_MODE") {
                 handleToggleHoverMode(message.payload);
-                // setHoverMode(message.payload);
 
                 // TODO: handle edge case - when hover mode is to be turned off, reset styling.
 
                 sendResponse({ success: true });
 
                 // Full page data
+            } else if (
+                message.action === "TOGGLE_HOVER_MODE_WITH_VOICE_COMMANDS"
+            ) {
+                handleToggleHoverMode(message.payload);
+
+                sendResponse({ success: true });
             } else if (message.action === "GET_PAGE_TEXT_CONTENT") {
                 const data = getPageTextContent();
 
@@ -274,10 +290,7 @@ const ContextMenu = () => {
                                 title: "Describe",
                                 icon: <ScanSearch className="w-4 h-4" />
                             },
-                            {
-                                title: "Describe and Read Aloud",
-                                icon: <ScrollText className="w-4 h-4" />
-                            },
+
                             {
                                 title: "Describe and Translate",
                                 icon: <Languages className="w-4 h-4" />
@@ -308,12 +321,6 @@ const ContextMenu = () => {
                             {
                                 title: "Summarize and Translate",
                                 icon: <ListRestart className="w-4 h-4" />
-                            }
-                        ],
-                        Reading: [
-                            {
-                                title: "Read aloud",
-                                icon: <AudioLines className="w-4 h-4" />
                             }
                         ]
                     });
@@ -395,49 +402,70 @@ const ContextMenu = () => {
             {isVisible && (
                 <div
                     ref={menuRef}
-                    className="fixed z-[9999] rounded-[8px] border shadow-2xl transition-all duration-300 py-2 px-4 gap-y-[30px] text-sm bg-[#0c0a09] border-[#292524] w-[200px] h-auto flex flex-col"
+                    className="fixed z-[9999] rounded-[8px] border shadow-2xl transition-all duration-300 py-2 px-4 gap-y-[30px] text-sm bg-[#0c0a09]/75 backdrop-blur-lg border-[#292524] w-[200px] h-auto flex flex-col"
                     style={{
                         top: mousePosition.y,
-                        left: mousePosition.x,
+                        // left: mousePosition.x,
+                        left: 200,
                         transform: "translate(-50%, 0)"
                     }}
                     onMouseLeave={() => handleSetIsOverMenu(false)}>
-                    <div className="font-bold text-md -mb-2 rounded-t-[8px] bg-[#252322] -mx-4 -mt-2 py-2 px-4">
-                        <h1 className="text-[#e4dcd7]">
+                    <div className="font-bold text-[14px] -mb-2 rounded-t-[8px] bg-[#0c0a09]/90 -mx-4 -mt-2 py-2 px-4 border-[#292524]">
+                        <h1 className="text-[#ede5e1] text-[16px]">
                             Current Tag:{" "}
                             {highlightedElementRef.current?.tagName.toLocaleUpperCase()}
                         </h1>
                     </div>
-                    {Object.keys(menuOptions).map((header, index) => (
-                        <div
-                            key={index}
-                            className="divide-y divide space-y-2 divide-opacity-50">
-                            <h2 className="text-md font-bold mb-1 text-[#e4dcd7]">
-                                {header}
-                            </h2>
-                            <ul className="text-[#a8a29e] mt-2">
-                                {menuOptions[header].map((option, subIndex) => (
-                                    <li key={subIndex}>
-                                        <button
-                                            // variant="ghost"
-                                            name={`${header}-${option.title}`}
-                                            className=" gap-x-2 justify-start whitespace-normal h-auto w-full text-start p-2 hover:bg-[#292524] hover:text-[#fafaf9] inline-flex items-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 rounded-[6px]"
-                                            onClick={() =>
-                                                sendMessage(option.title)
-                                            }>
-                                            <span className="whitespace-normal">
-                                                {option.title}
-                                            </span>
-
-                                            <span className="ml-auto">
-                                                {option.icon}
-                                            </span>
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
+                    {listening ? (
+                        <div className="w-full h-auto flex items-center justify-center pb-6">
+                            <button
+                                title="Stop Recording Voice Command"
+                                className="relative w-16 h-16 flex items-center justify-center bg-[#ef4444]/75 rounded-full focus:outline-none"
+                                onClick={() => {
+                                    handleStopRecording();
+                                }}>
+                                <span className="absolute w-20 h-20 rounded-full bg-[#ef4444] opacity-25 animate-ping"></span>
+                                <Mic className="h-8 w-8 text-white" />
+                            </button>
                         </div>
-                    ))}
+                    ) : (
+                        <>
+                            {Object.keys(menuOptions).map((header, index) => (
+                                <div
+                                    key={index}
+                                    className="divide-y divide space-y-2 divide-opacity-50">
+                                    <h2 className="text-[16px] font-bold mb-1 text-[#e4dcd7]">
+                                        {header}
+                                    </h2>
+                                    <ul className="text-[#a8a29e] pt-2">
+                                        {menuOptions[header].map(
+                                            (option, subIndex) => (
+                                                <li key={subIndex}>
+                                                    <button
+                                                        // variant="ghost"
+                                                        name={`${header}-${option.title}`}
+                                                        className="gap-x-2 justify-start whitespace-normal h-auto w-full text-start p-2 hover:bg-[#292524]/75 hover:text-[#fafaf9] inline-flex items-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 rounded-[6px]"
+                                                        onClick={() =>
+                                                            sendMessage(
+                                                                option.title
+                                                            )
+                                                        }>
+                                                        <span className="whitespace-normal">
+                                                            {option.title}
+                                                        </span>
+
+                                                        <span className="ml-auto text-[12px]">
+                                                            {option.icon}
+                                                        </span>
+                                                    </button>
+                                                </li>
+                                            )
+                                        )}
+                                    </ul>
+                                </div>
+                            ))}
+                        </>
+                    )}
                 </div>
             )}
         </>

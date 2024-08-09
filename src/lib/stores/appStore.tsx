@@ -14,6 +14,8 @@ interface AppState {
     setWhisperAPIKey: (value: string | null) => void;
     preferencesState: Preferences | null;
     savePreferencesState: (value: Preferences) => void;
+    recording: boolean;
+    setRecording: (value: boolean) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -33,7 +35,9 @@ export const useAppStore = create<AppState>()(
                     set(() => ({ whisperApiKey: value })),
                 preferencesState: null,
                 savePreferencesState: (value) =>
-                    set(() => ({ preferencesState: value }))
+                    set(() => ({ preferencesState: value })),
+                recording: false,
+                setRecording: (value) => set(() => ({ recording: value }))
             }),
             { name: "Gemini Application Store" }
         )

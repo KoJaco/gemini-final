@@ -58,9 +58,11 @@ const Sidepanel = () => {
         whisperApiKey,
         setWhisperAPIKey,
         preferencesState,
-        savePreferencesState
+        savePreferencesState,
+        recording
     } = useAppStore();
 
+    console.log("recording", recording);
     useEffect(() => {
         const initDefaults = async () => {
             try {
