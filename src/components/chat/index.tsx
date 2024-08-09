@@ -106,8 +106,7 @@ const Chat = ({
     setThread: (thread: ChatThread) => void;
     setResponseLoading: (value: boolean) => void;
 }) => {
-    const { setTypewriter, geminiApiKey, whisperApiKey, preferencesState } =
-        useAppStore();
+    const { setTypewriter, geminiApiKey, preferencesState } = useAppStore();
     // console.log(preferencesState);
     const characteristicsPreference =
         preferencesState.aiSettings.characteristics.value;
@@ -161,8 +160,6 @@ const Chat = ({
                 } else {
                     console.error("Menu option somehow didn't exist! ", title);
                 }
-
-                // setContextOption(message.option);
             }
         };
 
@@ -251,15 +248,17 @@ const Chat = ({
             messages: [...thread.messages, newUserMessage]
         };
 
-        try {
-            updateThread(thread.threadId, newUserMessage).then((resultSet) => {
-                if (resultSet.success) {
-                    setThread(updatedThread);
-                } else {
-                    console.error(resultSet.message);
-                }
-            });
+        // optimistically set thread with new message
 
+        updateThread(thread.threadId, newUserMessage).then((resultSet) => {
+            if (resultSet.success) {
+                setThread(updatedThread);
+            } else {
+                console.error(resultSet.message);
+            }
+        });
+
+        try {
             const currentSummary =
                 (await getSummaryOnThread(thread.threadId))?.content ||
                 "No current summary";
@@ -295,16 +294,16 @@ const Chat = ({
                     messages: [...updatedThread.messages, newGeminiMessage]
                 };
 
-                const updateThreadRes = await updateThread(
-                    thread.threadId,
-                    newGeminiMessage
+                updateThread(thread.threadId, newGeminiMessage).then(
+                    (resultSet) => {
+                        if (resultSet.success) {
+                            setThread(newThread);
+                        } else {
+                            // TODO: system message warning.
+                            console.error(resultSet.message);
+                        }
+                    }
                 );
-
-                if (updateThreadRes.success) {
-                    setThread(newThread);
-                } else {
-                    console.error("Error updating thread in database");
-                }
 
                 // TODO: update summary object. periodically... hmmm how to handle this?? Need a non-hacky way of handling this ay.
 
@@ -340,6 +339,8 @@ const Chat = ({
             }
         } catch (error) {
             console.error("ERROR when handling context option: ", error);
+        } finally {
+            setTypewriter(false);
         }
     };
 

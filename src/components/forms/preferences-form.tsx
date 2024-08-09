@@ -76,7 +76,8 @@ const preferencesSchema = z.object({
             .union([z.literal("spanish"), z.literal("english")])
             .nullable(),
 
-        useWebSpeech: z.boolean()
+        useWebSpeech: z.boolean(),
+        useVoiceCommandsOnHoverMode: z.boolean()
     })
 });
 
@@ -126,7 +127,9 @@ export const PreferencesForm = ({
                     translateToLanguage:
                         applicationSettings.translateToLanguage?.value
                             ?.language || null,
-                    useWebSpeech: applicationSettings.useWebSpeech
+                    useWebSpeech: applicationSettings.useWebSpeech,
+                    useVoiceCommandsOnHoverMode:
+                        applicationSettings.useVoiceCommandsOnHoverMode || false
                 }
             }
         }
@@ -271,7 +274,9 @@ export const PreferencesForm = ({
                         translateLanguageLabel.toUpperCase()
                     ]
                 },
-                useWebSpeech: preferences.applicationSettings.useWebSpeech
+                useWebSpeech: preferences.applicationSettings.useWebSpeech,
+                useVoiceCommandsOnHoverMode:
+                    preferences.applicationSettings.useVoiceCommandsOnHoverMode
             }
         };
 
@@ -517,7 +522,7 @@ export const PreferencesForm = ({
                                                     }
                                                 />
                                             </FormControl>
-                                            <div className="space-y-1 leading-none">
+                                            <div className="space-y-1">
                                                 <FormLabel>
                                                     Use Web Speech
                                                 </FormLabel>
@@ -528,6 +533,38 @@ export const PreferencesForm = ({
                                                     If you haven't added your
                                                     whisper API the application
                                                     will default to this.
+                                                </FormDescription>
+                                            </div>
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="preferences.applicationSettings.useVoiceCommandsOnHoverMode"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow">
+                                            <FormControl>
+                                                <Checkbox
+                                                    checked={field.value}
+                                                    onCheckedChange={
+                                                        field.onChange
+                                                    }
+                                                />
+                                            </FormControl>
+                                            <div className="space-y-1">
+                                                <FormLabel>
+                                                    Use Voice Commands On Hover
+                                                    Mode
+                                                </FormLabel>
+                                                <FormDescription>
+                                                    Check this if you would like
+                                                    to enable voice commands
+                                                    when using hover mode. This
+                                                    will give you the ability to
+                                                    submit your own command on
+                                                    the section that you are
+                                                    currently hovering over when
+                                                    you click 'stop' recording.
                                                 </FormDescription>
                                             </div>
                                         </FormItem>

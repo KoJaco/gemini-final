@@ -98,6 +98,7 @@ export interface Preferences {
             value: TranslateLanguage;
         } | null;
         useWebSpeech: boolean;
+        useVoiceCommandsOnHoverMode: boolean;
     };
 }
 

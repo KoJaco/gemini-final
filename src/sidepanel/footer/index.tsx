@@ -1,5 +1,5 @@
 // import { TOGGLE_HOVER_MODE } from "@/background/ports/toggle-hover-mode";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import {
     Tooltip,
     TooltipContent,
@@ -83,13 +83,23 @@ const SidepanelFooter = ({
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
-        const res = await createNewChatThread(newThread);
 
-        // TODO: Something is going wrong with the res
-        if (res.success) {
-            setCurrentChatThread(newThread);
-        } else {
-            console.error(`Error of status: ${res.status}: `, res.message);
+        try {
+            const res = await createNewChatThread(newThread);
+
+            if (res.success) {
+                setCurrentChatThread(newThread);
+            } else {
+                console.error(`Error of status: ${res.status}: `, res.message);
+            }
+        } catch (error) {
+            console.error(
+                `Error when attempting to create new chat thread: ${error}`
+            );
+        } finally {
+            if (currentView !== "main") {
+                setCurrentView("main");
+            }
         }
     }
 

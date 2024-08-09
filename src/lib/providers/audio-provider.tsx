@@ -1,7 +1,13 @@
-"use client";
-
 import { type Audio } from "@/lib/types";
-import { createContext, useContext, useMemo, useReducer, useRef } from "react";
+import {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useReducer,
+    useRef
+} from "react";
 
 interface PlayerState {
     playing: boolean;
@@ -62,11 +68,19 @@ function audioReducer(state: PlayerState, action: Action): PlayerState {
             return { ...state, currentTime: action.payload };
         case ActionKind.SET_DURATION:
             return { ...state, duration: action.payload };
+        default:
+            return state;
     }
 }
 
-export function AudioProvider({ children }: { children: React.ReactNode }) {
-    let [state, dispatch] = useReducer(audioReducer, {
+export function AudioProvider({
+    children,
+    onTimeUpdate
+}: {
+    children: React.ReactNode;
+    onTimeUpdate?: (currentTime: number) => void;
+}) {
+    const [state, dispatch] = useReducer(audioReducer, {
         playing: false,
         muted: false,
         duration: 0,
@@ -74,9 +88,55 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         audio: null,
         audioBlob: null
     });
-    let playerRef = useRef<React.ElementRef<"audio">>(null);
+    const playerRef = useRef<React.ElementRef<"audio">>(null);
+    // const animationFrameRef = useRef<number | null>(null);
 
-    let actions = useMemo<PublicPlayerActions>(() => {
+    // const updateTime = useCallback(() => {
+    //     if (playerRef.current) {
+    //         const exactCurrentTime = playerRef.current.currentTime;
+
+    //         dispatch({
+    //             type: ActionKind.SET_CURRENT_TIME,
+    //             payload: exactCurrentTime
+    //         });
+
+    //         if (onTimeUpdate) {
+    //             onTimeUpdate(exactCurrentTime);
+    //         }
+
+    //         animationFrameRef.current = requestAnimationFrame(updateTime);
+    //     }
+    // }, [onTimeUpdate]);
+
+    // useEffect(() => {
+    //     const audioElement = playerRef.current;
+
+    //     const startTracking = () => {
+    //         if (audioElement?.paused === false) {
+    //             animationFrameRef.current = requestAnimationFrame(updateTime);
+    //         }
+    //     };
+
+    //     const stopTracking = () => {
+    //         if (animationFrameRef.current) {
+    //             cancelAnimationFrame(animationFrameRef.current);
+    //             animationFrameRef.current = null;
+    //         }
+    //     };
+
+    //     audioElement?.addEventListener("play", startTracking);
+    //     audioElement?.addEventListener("pause", stopTracking);
+    //     audioElement?.addEventListener("ended", stopTracking);
+
+    //     return () => {
+    //         audioElement?.removeEventListener("play", startTracking);
+    //         audioElement?.removeEventListener("pause", stopTracking);
+    //         audioElement?.removeEventListener("ended", stopTracking);
+    //         stopTracking(); // Cleanup on unmount
+    //     };
+    // }, [updateTime]);
+
+    const actions = useMemo<PublicPlayerActions>(() => {
         return {
             play(audio, audioBlob) {
                 if (audio) {
@@ -86,7 +146,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
                         playerRef.current &&
                         playerRef.current.currentSrc !== audio.audio.src
                     ) {
-                        let playbackRate = playerRef.current.playbackRate;
+                        const playbackRate = playerRef.current.playbackRate;
                         playerRef.current.src = audio.audio.src;
                         playerRef.current.load();
                         playerRef.current.pause();
@@ -100,9 +160,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
                         playerRef.current &&
                         playerRef.current.src !== URL.createObjectURL(audioBlob)
                     ) {
-                        let playbackRate = playerRef.current.playbackRate;
+                        const playbackRate = playerRef.current.playbackRate;
                         playerRef.current.src = URL.createObjectURL(audioBlob);
-                        playerRef.current.pause();
                         playerRef.current.pause();
                         playerRef.current.playbackRate = playbackRate;
                         playerRef.current.currentTime = 0;
@@ -139,8 +198,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
             },
             isPlaying(audio, audioBlob) {
                 if (audio) {
-                    state.playing &&
-                        playerRef.current?.currentSrc === audio.audio.src;
+                    return (
+                        state.playing &&
+                        playerRef.current?.currentSrc === audio.audio.src
+                    );
                 } else if (audioBlob) {
                     return (
                         state.playing &&
@@ -154,7 +215,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         };
     }, [state.playing]);
 
-    let api = useMemo<PlayerAPI>(
+    const api = useMemo<PlayerAPI>(
         () => ({ ...state, ...actions }),
         [state, actions]
     );
@@ -168,12 +229,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
                 ref={playerRef}
                 onPlay={() => dispatch({ type: ActionKind.PLAY })}
                 onPause={() => dispatch({ type: ActionKind.PAUSE })}
-                onTimeUpdate={(event) => {
-                    dispatch({
-                        type: ActionKind.SET_CURRENT_TIME,
-                        payload: Math.floor(event.currentTarget.currentTime)
-                    });
-                }}
                 onDurationChange={(event) => {
                     dispatch({
                         type: ActionKind.SET_DURATION,
@@ -187,7 +242,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useAudioPlayer(audio?: Audio, audioBlob?: Blob) {
-    let player = useContext(AudioPlayerContext);
+    const player = useContext(AudioPlayerContext);
 
     return useMemo<PlayerAPI>(
         () => ({

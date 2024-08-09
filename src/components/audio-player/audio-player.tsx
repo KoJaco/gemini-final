@@ -29,11 +29,10 @@ function formatHumanTime(seconds: number) {
 
 interface Props {
     showAudioPlayer: (value: boolean) => void;
-    transcript: Transcript | Partial<Transcript>;
     // setCharIndex: (value: number) => void;
 }
 
-export function AudioPlayer({ showAudioPlayer, transcript }: Props) {
+export function AudioPlayer({ showAudioPlayer }: Props) {
     let player = useAudioPlayer();
 
     let wasPlayingRef = useRef(false);
@@ -57,9 +56,6 @@ export function AudioPlayer({ showAudioPlayer, transcript }: Props) {
 
     return (
         <div className="flex items-center gap-6 bg-background/75 rounded-full px-1 py-4 shadow border border-muted-foreground/50 backdrop-blur-sm md:px-6">
-            <div className="hidden md:block">
-                <PlayButton player={player} />
-            </div>
             <div className="mb-[env(safe-area-inset-bottom)] flex flex-1 flex-col gap-3 overflow-hidden p-1">
                 <div className="flex justify-between gap-4 flex-col items-center">
                     <div className="flex flex-none items-center gap-4 flex-col">

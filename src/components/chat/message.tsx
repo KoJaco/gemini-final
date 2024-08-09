@@ -1,8 +1,16 @@
-"use client";
+// TODO: Edge case, should not be able to play two WebTTS components at the same time... results in buggy behaviour.
 
-// import { useAppStore } from "@/lib/stores/appStore"
-// import { useAppStore } from "@/lib/stores/appStore"
-import { rejects } from "assert";
+// TODO: Adjust system message styling..
+
+// TODO: add automatic scroll to when audio is playing... should following transcript.
+
+// TODO: Error in rendering markdown... not working with external links and code... ?????
+
+// TODO: Memoize markdown
+
+// TODO: clean this up a lot... so many state var... unnecessary
+
+// TODO: instead of tracking cursor positioning, this should track the current position of the read out... I'm going to have to make another provider that just does the highlighting for both WebSpeech and the Whisper Stuff.
 import { AudioPlayer } from "@/components/audio-player/audio-player";
 import ErrorBoundary from "@/components/errors/ErrorBoundary";
 import {
@@ -18,10 +26,6 @@ import {
     type PlayerAPI
 } from "@/lib/providers/audio-provider";
 import {
-    HighlightProvider,
-    useHighlight
-} from "@/lib/providers/text-highlight-provider";
-import {
     getAudioDataByMessageId,
     saveAudioData
 } from "@/lib/storage/indexed-db";
@@ -33,21 +37,30 @@ import clsx from "clsx";
 import { AudioLines, MonitorCog, Pause, Play } from "lucide-react";
 import Markdown, { type MarkdownToJSX } from "markdown-to-jsx";
 import { nanoid } from "nanoid";
-import React, { memo, useEffect, useRef, useState, type FC } from "react";
+import React, {
+    Fragment,
+    memo,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC
+} from "react";
 import { createPortal } from "react-dom";
 
 import { MainPlayButton } from "../audio-player/main-play-button";
-// import ReactMarkdown, { type Options } from "react-markdown";
-// import remarkGfm from "remark-gfm";
-// import remarkMath from "remark-math";
-
-// import remarkMath from "remark-math";
-
 import { Button } from "../ui/button";
 import { IconGemini, IconUser } from "../ui/icons";
 import WebTTS from "../web-tts";
+import { AudioPlayerWithHighlighting } from "./highlighter";
 
 // TODO: functionality change... should I have the audio player hover on the side or be underneath/above the component?
+
+function getWordHighlightClass(startTime, endTime, currentTime) {
+    return currentTime >= startTime && currentTime <= endTime
+        ? "highlighted"
+        : "";
+}
 
 export interface ChatMessageProps {
     message: Message;
@@ -77,24 +90,40 @@ export function ChatMessage({
 
     const [currentAudio, setCurrentAudio] = useState<AudioData | null>(null);
 
+    // const [currentTime, setCurrentTime] = useState(0);
+
     // refs
 
     const messageContainerRef = useRef<HTMLDivElement | null>(null);
     const ttsRef = useRef<HTMLDivElement | null>(null);
+    // const wordsRef = useRef<
+    //     { word: string; start: number; end: number }[] | null
+    // >(null);
 
     // global state
 
     const { typewriter, setTypewriter, preferencesState } = useAppStore();
 
     // Context for highlight... TTS should be merged into audio player with a provider for all of this... very ugly at the moment.
-    const [messageCharIndex, setMessageCharIndex] = useState(0);
+    // const [currentCharIndex, setCurrentCharIndex] = useState(0);
 
     // consts
 
     const { useWebSpeech } = preferencesState.applicationSettings;
 
-    // typewriter... get this working properly... it's just straight without any bounciness.
+    // const stripPunctuation = (text: string): string => {
+    //     return text
+    //         .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
+    //         .replace(/\s{2,}/g, " ");
+    // };
 
+    // useEffect(() => {
+    //     if (currentAudio && currentAudio.transcript) {
+    //         wordsRef.current = currentAudio.transcript.words;
+    //     }
+    // }, []);
+
+    // typewriter... get this working properly... it's just straight without any bounciness.
     useEffect(() => {
         if (typewriter) {
             if (message.content.length > 256 && message.role === "user") {
@@ -244,20 +273,6 @@ export function ChatMessage({
         }
     };
 
-    // TODO: Edge case, should not be able to play two WebTTS components at the same time... results in buggy behaviour.
-
-    // TODO: Adjust system message styling..
-
-    // TODO: add automatic scroll to when audio is playing... should following transcript.
-
-    // TODO: Error in rendering markdown... not working with external links and code... ?????
-
-    // TODO: Memoize markdown
-
-    // TODO: clean this up a lot... so many state var... unnecessary
-
-    // TODO: instead of tracking cursor positioning, this should track the current position of the read out... I'm going to have to make another provider that just does the highlighting for both WebSpeech and the Whisper Stuff.
-
     if (typeof displayedText !== "string") {
         console.error("displayedText is not a string: ", displayedText);
         return null;
@@ -274,7 +289,6 @@ export function ChatMessage({
                 onMouseEnter={() => setDisplayAudio(true)}
                 onMouseLeave={handleMouseLeave}
                 onMouseMove={debouncedMouseMove}
-                // onMouseMove={handleMouseMove}
                 style={{ overflow: "visible" }}
                 {...props}>
                 <div className="flex justify-between w-full items-center gap-x-4">
@@ -300,6 +314,7 @@ export function ChatMessage({
                         <MainPlayButton
                             audioBlob={currentAudio.audioBlob}
                             setShowAudioPlayer={setShowAudioPlayer}
+                            title="Start Audio Player"
                             className="mr-auto flex-start mb-2 rounded-full"
                             playing={
                                 <>
@@ -378,91 +393,9 @@ export function ChatMessage({
                             <div
                                 id={`text-content-${message.id}`}
                                 className="h-full w-full prose dark:prose-invert break-words prose-p:leading-relaxed prose-pre:p-0 text-wrap whitespace-normal prose-p:last:mb-0 prose-p:mb-2">
-                                <Markdown
-                                    options={{
-                                        overrides: {
-                                            p: {
-                                                component: ({
-                                                    children,
-                                                    ...props
-                                                }) => {
-                                                    return (
-                                                        <p {...props}>
-                                                            {children}
-                                                        </p>
-                                                    );
-                                                },
-                                                props: {
-                                                    className: "mb-2 last:mb-0"
-                                                }
-                                            },
-                                            code: {
-                                                component: ({
-                                                    node,
-                                                    inline,
-                                                    className,
-                                                    children,
-                                                    ...props
-                                                }) => {
-                                                    if (children.length) {
-                                                        if (
-                                                            children[0] == "▍"
-                                                        ) {
-                                                            return (
-                                                                <span className="mt-1 cursor-default animate-pulse">
-                                                                    ▍
-                                                                </span>
-                                                            );
-                                                        }
-
-                                                        children[0] = (
-                                                            children[0] as string
-                                                        ).replace("`▍`", "▍");
-                                                        // children[0] = (
-                                                        //     children[0] as string
-                                                        // ).replace("` `", " ");
-                                                    }
-
-                                                    const match =
-                                                        /language-(\w+)/.exec(
-                                                            className || ""
-                                                        );
-
-                                                    if (inline) {
-                                                        return (
-                                                            <code
-                                                                className={
-                                                                    className
-                                                                }
-                                                                {...props}>
-                                                                {children}
-                                                            </code>
-                                                        );
-                                                    }
-
-                                                    return (
-                                                        <CodeBlock
-                                                            key={Math.random()}
-                                                            language={
-                                                                (match &&
-                                                                    match[1]) ||
-                                                                ""
-                                                            }
-                                                            value={String(
-                                                                children
-                                                            ).replace(
-                                                                /\n$/,
-                                                                ""
-                                                            )}
-                                                            {...props}
-                                                        />
-                                                    );
-                                                }
-                                            }
-                                        }
-                                    }}>
+                                <MemoizedMarkdown>
                                     {displayedText}
-                                </Markdown>
+                                </MemoizedMarkdown>
                             </div>
                         </ErrorBoundary>
                     )}
@@ -482,7 +415,6 @@ export function ChatMessage({
                                 }}>
                                 <AudioPlayer
                                     showAudioPlayer={setShowAudioPlayer}
-                                    transcript={currentAudio.transcript}
                                 />
                             </div>,
                             document.getElementById(
@@ -523,6 +455,86 @@ export function ChatMessage({
         </AudioProvider>
     );
 }
+
+const MemoizedMarkdown = memo(
+    ({
+        children,
+        options,
+        ...props
+    }: {
+        [key: string]: any;
+        children: string;
+        options?: MarkdownToJSX.Options;
+    }) => {
+        return (
+            <Markdown
+                options={{
+                    overrides: {
+                        p: {
+                            component: ({ children, ...props }) => {
+                                return <p {...props}>{children}</p>;
+                            },
+                            props: {
+                                className: "mb-2 last:mb-0"
+                            }
+                        },
+                        code: {
+                            component: ({
+                                node,
+                                inline,
+                                className,
+                                children,
+                                ...props
+                            }) => {
+                                if (children.length) {
+                                    if (children[0] == "▍") {
+                                        return (
+                                            <span className="mt-1 cursor-default animate-pulse">
+                                                ▍
+                                            </span>
+                                        );
+                                    }
+
+                                    children[0] = (
+                                        children[0] as string
+                                    ).replace("`▍`", "▍");
+                                    // children[0] = (
+                                    //     children[0] as string
+                                    // ).replace("` `", " ");
+                                }
+
+                                const match = /language-(\w+)/.exec(
+                                    className || ""
+                                );
+
+                                if (inline) {
+                                    return (
+                                        <code className={className} {...props}>
+                                            {children}
+                                        </code>
+                                    );
+                                }
+
+                                return (
+                                    <CodeBlock
+                                        key={Math.random()}
+                                        language={(match && match[1]) || ""}
+                                        value={String(children).replace(
+                                            /\n$/,
+                                            ""
+                                        )}
+                                        {...props}
+                                    />
+                                );
+                            }
+                        }
+                    }
+                }}>
+                {children}
+            </Markdown>
+        );
+    }
+);
 
 // const MemoizedReactMarkdown: FC<Options> = memo(
 //     ReactMarkdown,
