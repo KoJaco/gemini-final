@@ -5,17 +5,17 @@ import {
     CardDescription,
     CardTitle
 } from "@/components/ui/card";
-import { CodeBlock } from "@/components/ui/codeblock";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
     getAllThreads,
+    getSummaryOnThread,
     removeThread,
     setLatestChatThread
 } from "@/lib/storage/indexed-db";
 import type { AvailableViews, ChatThread } from "@/lib/types";
 import clsx from "clsx";
 import { CornerUpLeft, Trash } from "lucide-react";
-import React, { memo, useEffect, useState, type FC } from "react";
+import React, { useEffect, useState } from "react";
 
 type Props = {
     setOpenView: (value: AvailableViews) => void;
@@ -98,7 +98,7 @@ export const ThreadsView = ({
             <h2 className="mt-4 mb-2 text-lg font-bold">All Threads</h2>
             <ScrollArea className="h-full py-2">
                 <ul className="flex flex-col gap-6 h-full">
-                    {threads.map((thrd) => {
+                    {threads.map((thrd, index) => {
                         const timestamp = new Date(thrd.updatedAt);
 
                         return (
@@ -126,33 +126,14 @@ export const ThreadsView = ({
                                         handleSetCurrentChatThread(thrd);
                                     }}>
                                     <CardContent className="p-2">
-                                        <CardTitle className="flex w-full max-h-18 truncate whitespace-normal text-sm leading-2">
-                                            {thrd.threadId}
+                                        <CardTitle className="flex w-[90%] h-10 overflow-hidden truncate whitespace-normal text-sm leading-2 text-clip flex-wrap break-all">
+                                            {
+                                                thrd.messages[
+                                                    thrd.messages.length - 1
+                                                ].content
+                                            }
                                         </CardTitle>
-                                        <CardDescription className="mt-2 mb-4 h-20 text-lg overflow-hidden break-all">
-                                            {/* {thrd.messages.length > 1 ? (
-                                                <span>
-                                                    {thrd.messages[1].content}
-                                                </span>
-                                            ) : (
-                                                <span>
-                                                    {thrd.messages[0].content}
-                                                </span>
-                                            )} */}
-                                            <span className="text-clip whitespace-normal break-all">
-                                                {
-                                                    thrd.messages[
-                                                        thrd.messages.length - 1
-                                                    ].content
-                                                }
-                                                {/* {stripSummary(
-                                                    thrd.summary?.content
-                                                ) ||
-                                                    thrd.messages[
-                                                        thrd.messages.length - 1
-                                                    ].content} */}
-                                            </span>
-                                        </CardDescription>
+
                                         <CardDescription className="text-muted-foreground mt-2">
                                             <span>{`Messages: (${thrd.messages.length}) `}</span>
                                             <br />
