@@ -1,5 +1,5 @@
 import { type Audio } from "@/lib/types";
-import {
+import React, {
     createContext,
     useCallback,
     useContext,
@@ -29,7 +29,8 @@ interface PublicPlayerActions {
     isPlaying: (audio?: Audio, audioBlob?: Blob) => boolean;
 }
 
-export type PlayerAPI = PlayerState & PublicPlayerActions;
+export type PlayerAPI = PlayerState &
+    PublicPlayerActions & { currentTimeRef: React.MutableRefObject<number> };
 
 const enum ActionKind {
     SET_META = "SET_META",
@@ -89,7 +90,7 @@ export function AudioProvider({
         audioBlob: null
     });
     const playerRef = useRef<React.ElementRef<"audio">>(null);
-    // const animationFrameRef = useRef<number | null>(null);
+    const currentTimeRef = useRef(0); // Store the current time in a ref
 
     // const updateTime = useCallback(() => {
     //     if (playerRef.current) {
@@ -103,38 +104,27 @@ export function AudioProvider({
     //         if (onTimeUpdate) {
     //             onTimeUpdate(exactCurrentTime);
     //         }
-
-    //         animationFrameRef.current = requestAnimationFrame(updateTime);
     //     }
     // }, [onTimeUpdate]);
 
-    // useEffect(() => {
-    //     const audioElement = playerRef.current;
+    useEffect(() => {
+        const onTimeUpdate = () => {
+            if (playerRef.current) {
+                currentTimeRef.current = playerRef.current.currentTime;
+            }
+        };
 
-    //     const startTracking = () => {
-    //         if (audioElement?.paused === false) {
-    //             animationFrameRef.current = requestAnimationFrame(updateTime);
-    //         }
-    //     };
+        const audioElement = playerRef.current;
+        if (audioElement) {
+            audioElement.addEventListener("timeupdate", onTimeUpdate);
+        }
 
-    //     const stopTracking = () => {
-    //         if (animationFrameRef.current) {
-    //             cancelAnimationFrame(animationFrameRef.current);
-    //             animationFrameRef.current = null;
-    //         }
-    //     };
-
-    //     audioElement?.addEventListener("play", startTracking);
-    //     audioElement?.addEventListener("pause", stopTracking);
-    //     audioElement?.addEventListener("ended", stopTracking);
-
-    //     return () => {
-    //         audioElement?.removeEventListener("play", startTracking);
-    //         audioElement?.removeEventListener("pause", stopTracking);
-    //         audioElement?.removeEventListener("ended", stopTracking);
-    //         stopTracking(); // Cleanup on unmount
-    //     };
-    // }, [updateTime]);
+        return () => {
+            if (audioElement) {
+                audioElement.removeEventListener("timeupdate", onTimeUpdate);
+            }
+        };
+    }, []);
 
     const actions = useMemo<PublicPlayerActions>(() => {
         return {
@@ -216,7 +206,7 @@ export function AudioProvider({
     }, [state.playing]);
 
     const api = useMemo<PlayerAPI>(
-        () => ({ ...state, ...actions }),
+        () => ({ ...state, ...actions, currentTimeRef }),
         [state, actions]
     );
 

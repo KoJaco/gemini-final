@@ -1,16 +1,4 @@
-// TODO: Edge case, should not be able to play two WebTTS components at the same time... results in buggy behaviour.
-
-// TODO: Adjust system message styling..
-
-// TODO: add automatic scroll to when audio is playing... should following transcript.
-
-// TODO: Error in rendering markdown... not working with external links and code... ?????
-
-// TODO: Memoize markdown
-
-// TODO: clean this up a lot... so many state var... unnecessary
-
-// TODO: instead of tracking cursor positioning, this should track the current position of the read out... I'm going to have to make another provider that just does the highlighting for both WebSpeech and the Whisper Stuff.
+// TODO: Refactor this. too many state variables.
 import { AudioPlayer } from "@/components/audio-player/audio-player";
 import ErrorBoundary from "@/components/errors/ErrorBoundary";
 import {
@@ -31,10 +19,10 @@ import {
 } from "@/lib/storage/indexed-db";
 import { getTranscription, requestTTS } from "@/lib/storage/openAiApi";
 import { useAppStore } from "@/lib/stores/appStore";
-import type { AudioData, Message } from "@/lib/types";
+import type { AudioData, Message, Transcript } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import clsx from "clsx";
-import { AudioLines, MonitorCog, Pause, Play } from "lucide-react";
+import { AudioLines, Highlighter, MonitorCog, Pause, Play } from "lucide-react";
 import Markdown, { type MarkdownToJSX } from "markdown-to-jsx";
 import { nanoid } from "nanoid";
 import React, {
@@ -54,12 +42,6 @@ import { IconGemini, IconUser } from "../ui/icons";
 import WebTTS from "../web-tts";
 
 // TODO: functionality change... should I have the audio player hover on the side or be underneath/above the component?
-
-function getWordHighlightClass(startTime, endTime, currentTime) {
-    return currentTime >= startTime && currentTime <= endTime
-        ? "highlighted"
-        : "";
-}
 
 export interface ChatMessageProps {
     message: Message;
@@ -83,46 +65,24 @@ export function ChatMessage({
     const [displayAudio, setDisplayAudio] = useState(false);
     const [audioIsInProgress, setAudioIsInProgress] = useState(false);
     const [showAudioPlayer, setShowAudioPlayer] = useState(false);
+    const [toggleTranscript, setToggleTranscript] = useState(false);
 
     const [messageAudioLoading, setMessageAudioLoading] = useState(false);
     // TODO: add another state for transcription loading?
 
     const [currentAudio, setCurrentAudio] = useState<AudioData | null>(null);
 
-    // const [currentTime, setCurrentTime] = useState(0);
+    const { currentTime } = useAudioPlayer();
 
     // refs
 
     const messageContainerRef = useRef<HTMLDivElement | null>(null);
     const ttsRef = useRef<HTMLDivElement | null>(null);
-    // const wordsRef = useRef<
-    //     { word: string; start: number; end: number }[] | null
-    // >(null);
-
-    // global state
 
     const { typewriter, setTypewriter, preferencesState } = useAppStore();
 
-    // Context for highlight... TTS should be merged into audio player with a provider for all of this... very ugly at the moment.
-    // const [currentCharIndex, setCurrentCharIndex] = useState(0);
-
-    // consts
-
     const { useWebSpeech } = preferencesState.applicationSettings;
 
-    // const stripPunctuation = (text: string): string => {
-    //     return text
-    //         .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
-    //         .replace(/\s{2,}/g, " ");
-    // };
-
-    // useEffect(() => {
-    //     if (currentAudio && currentAudio.transcript) {
-    //         wordsRef.current = currentAudio.transcript.words;
-    //     }
-    // }, []);
-
-    // typewriter... get this working properly... it's just straight without any bounciness.
     useEffect(() => {
         if (typewriter) {
             if (message.content.length > 256 && message.role === "user") {
@@ -290,7 +250,7 @@ export function ChatMessage({
                 onMouseMove={debouncedMouseMove}
                 style={{ overflow: "visible" }}
                 {...props}>
-                <div className="flex justify-between w-full items-center gap-x-4">
+                <div className="flex justify-between w-full items-center gap-x-2">
                     <div
                         className={clsx(
                             "flex w-full mb-2",
@@ -310,11 +270,27 @@ export function ChatMessage({
                     </div>
 
                     {currentAudio && !useWebSpeech && (
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Activate Highlight Mode"
+                            onClick={() =>
+                                setToggleTranscript(!toggleTranscript)
+                            }
+                            className={clsx(
+                                "mb-2 px-2 hover:scale-105",
+                                toggleTranscript ? "bg-secondary" : ""
+                            )}>
+                            <Highlighter className="w-4 h-4" />
+                        </Button>
+                    )}
+
+                    {currentAudio && !useWebSpeech && (
                         <MainPlayButton
                             audioBlob={currentAudio.audioBlob}
                             setShowAudioPlayer={setShowAudioPlayer}
                             title="Start Audio Player"
-                            className="mr-auto flex-start mb-2 rounded-full"
+                            className="mr-auto flex-start mb-2 rounded-full px-3 hover:scale-105"
                             playing={
                                 <>
                                     <Pause className="h-3 w-3 fill-current" />
@@ -335,7 +311,7 @@ export function ChatMessage({
                             size="icon"
                             variant="ghost"
                             title="Convert message to audio with Whisper"
-                            className="transition-transform hover:scale-105 duration-300 mb-2"
+                            className="transition-transform hover:scale-105 duration-300 mb-2 px-2"
                             disabled={!whisperApiKey || messageAudioLoading}
                             onClick={() => {
                                 handleConvertMessageToWhisper(displayedText);
@@ -392,9 +368,25 @@ export function ChatMessage({
                             <div
                                 id={`text-content-${message.id}`}
                                 className="h-full w-full prose dark:prose-invert break-words prose-p:leading-relaxed prose-pre:p-0 text-wrap whitespace-normal prose-p:last:mb-0 prose-p:mb-2">
-                                <MemoizedMarkdown>
+                                {/* <MemoizedMarkdown>
                                     {displayedText}
-                                </MemoizedMarkdown>
+                                </MemoizedMarkdown> */}
+
+                                {toggleTranscript ? (
+                                    currentAudio ? (
+                                        <TranscriptHighlight
+                                            transcript={currentAudio.transcript}
+                                        />
+                                    ) : (
+                                        <MemoizedMarkdown>
+                                            {displayedText}
+                                        </MemoizedMarkdown>
+                                    )
+                                ) : (
+                                    <MemoizedMarkdown>
+                                        {displayedText}
+                                    </MemoizedMarkdown>
+                                )}
                             </div>
                         </ErrorBoundary>
                     )}
@@ -457,6 +449,150 @@ export function ChatMessage({
         </AudioProvider>
     );
 }
+
+// TODO: Could not get accurate word and segment-level highlighting done in time... I'm kinda lost with how to do it using the markdown renderer...
+
+const TranscriptHighlight: FC<{
+    transcript: Transcript | Partial<Transcript>;
+}> = ({ transcript }) => {
+    const { currentTimeRef } = useAudioPlayer();
+    const wordsRef = useRef<HTMLSpanElement[]>([]);
+
+    useEffect(() => {
+        const highlightActiveWord = () => {
+            const currentTime = currentTimeRef.current;
+            const activeWordIndex = transcript.words.findIndex(
+                (word) => word.start <= currentTime && word.end >= currentTime
+            );
+
+            wordsRef.current.forEach((wordElement, index) => {
+                if (wordElement) {
+                    wordElement.style.fontWeight =
+                        index === activeWordIndex ? "bold" : "normal";
+                    wordElement.style.backgroundColor =
+                        index === activeWordIndex ? "#b91c1c" : "";
+                    wordElement.style.color =
+                        index === activeWordIndex ? "#fef2f2" : "";
+                    wordElement.style.paddingLeft =
+                        index === activeWordIndex ? "1px" : "";
+                    wordElement.style.paddingRight =
+                        index === activeWordIndex ? "1px" : "";
+                }
+            });
+        };
+
+        const intervalId = setInterval(highlightActiveWord, 25);
+
+        return () => clearInterval(intervalId);
+    }, [transcript, currentTimeRef]);
+
+    return (
+        <div className="max-w-full whitespace-normal break-all">
+            {transcript.words.map((word, index) => (
+                <span
+                    key={index}
+                    ref={(el) => (wordsRef.current[index] = el!)}
+                    className="mr-1 rounded-sm transition-all duration-100">
+                    {word.word}
+                </span>
+            ))}
+        </div>
+    );
+};
+
+// const TranscriptHighlight: FC<{
+//     transcript: Transcript | Partial<Transcript>;
+// }> = ({ transcript }) => {
+//     const { currentTimeRef } = useAudioPlayer();
+//     const wordsRef = useRef<HTMLSpanElement[]>([]);
+//     let wordIndex = 0; // Track the index of words in the transcript
+
+//     useEffect(() => {
+//         const highlightActiveWord = () => {
+//             const currentTime = currentTimeRef.current;
+
+//             wordsRef.current.forEach((wordElement, index) => {
+//                 const word = transcript.words[index];
+//                 if (wordElement) {
+//                     if (word.start <= currentTime && word.end >= currentTime) {
+//                         wordElement.style.backgroundColor = "#b91c1c";
+//                         wordElement.style.color = "#fef2f2";
+//                         wordElement.style.paddingLeft = "1px";
+//                         wordElement.style.paddingRight = "1px";
+//                     } else {
+//                         wordElement.style.fontWeight = "normal";
+//                         wordElement.style.backgroundColor = "";
+//                         wordElement.style.color = "";
+//                         wordElement.style.paddingLeft = "";
+//                         wordElement.style.paddingRight = "";
+//                     }
+//                 }
+//             });
+//         };
+
+//         const intervalId = setInterval(highlightActiveWord, 25);
+
+//         return () => clearInterval(intervalId);
+//     }, [transcript, currentTimeRef]);
+
+//     return (
+//         <div className="max-w-full whitespace-normal break-all">
+//             {transcript.segments.map((segment, segmentIndex) => (
+//                 <span
+//                     key={`segment-${segmentIndex}`}
+//                     className="mr-1 rounded-sm transition-all duration-100">
+//                     {segment.text
+//                         .split(" ")
+//                         .map((wordText, wordIndexInSegment) => {
+//                             const cleanWordText = wordText.replace(
+//                                 /[.,!?]/g,
+//                                 ""
+//                             );
+
+//                             // Find the next matching word in the transcript
+//                             const word = transcript.words[wordIndex];
+
+//                             // Check if the word matches the cleaned word text
+//                             const isMatchingWord =
+//                                 word && word.word === cleanWordText;
+
+//                             if (isMatchingWord) {
+//                                 const wordWithPunctuation = wordText.includes(
+//                                     word.word
+//                                 )
+//                                     ? wordText
+//                                     : word.word;
+
+//                                 const refIndex = wordIndex; // Capture the current word index
+//                                 wordIndex++; // Move to the next word in the transcript
+
+//                                 return (
+//                                     <span
+//                                         key={`word-${segmentIndex}-${wordIndexInSegment}`}
+//                                         ref={(el) =>
+//                                             (wordsRef.current[refIndex] = el!)
+//                                         }
+//                                         className="mr-1 rounded-sm transition-all duration-100">
+//                                         {wordWithPunctuation}
+//                                     </span>
+//                                 );
+//                             } else {
+//                                 // Return spaces and punctuation as is, ensuring no extra spaces are added
+//                                 return (
+//                                     <span
+//                                         key={`word-${segmentIndex}-${wordIndexInSegment}`}
+//                                         className="rounded-sm transition-all duration-100">
+//                                         {wordText}
+//                                     </span>
+//                                 );
+//                             }
+//                         })}
+//                     {segmentIndex < transcript.segments.length - 1 && " "}
+//                 </span>
+//             ))}
+//         </div>
+//     );
+// };
 
 const MemoizedMarkdown = memo(
     ({
@@ -537,13 +673,3 @@ const MemoizedMarkdown = memo(
         );
     }
 );
-
-// const MemoizedReactMarkdown: FC<Options> = memo(
-//     ReactMarkdown,
-//     (prevProps, nextProps) => {
-//         return (
-//             prevProps.children === nextProps.children &&
-//             prevProps.className === nextProps.className
-//         );
-//     }
-// );

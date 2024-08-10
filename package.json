@@ -1,6 +1,6 @@
 {
-    "name": "gemini-final",
-    "displayName": "Gemini final",
+    "name": "companion",
+    "displayName": "Companion",
     "version": "0.0.1",
     "description": "A browser extension that integrates fully with Google Gemini to understand full webpages and particular content on webpages.",
     "author": "kojaco",

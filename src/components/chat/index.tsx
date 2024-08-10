@@ -163,12 +163,6 @@ const Chat = ({
                 } else {
                     console.error("Menu option somehow didn't exist! ", title);
                 }
-            } else if (message.action === "AUDIO_DATA" && message.payload) {
-                const { blob } = message.payload;
-                console.log(blob);
-                const audioUrl = URL.createObjectURL(blob);
-                const audio = new Audio(audioUrl);
-                audio.play();
             } else if (message.action === "STOP_RECORDING") {
                 setRecording(false);
 
@@ -243,12 +237,6 @@ const Chat = ({
             " " +
             prompt;
 
-        console.log(prompt);
-
-        // return;
-
-        // TODO: Should there be a user message? Or simply a gemini message based on a command?
-
         setTypewriter(true);
 
         const newUserMessage: Message = {
@@ -321,7 +309,7 @@ const Chat = ({
                     }
                 );
 
-                // TODO: update summary object. periodically... hmmm how to handle this?? Need a non-hacky way of handling this ay.
+                // TODO: Improve keeping the context for the next response, previous few messages should be the most pertinent.
 
                 await updateConversationSummary(
                     thread.threadId,
@@ -360,15 +348,12 @@ const Chat = ({
         }
     };
 
-    // TODO: Add another fetchDataImage
-
     const fetchTextDataFromTextAndImage = async (
         prompt: string,
         imagePart: Part
     ) => {
         setResponseLoading(true);
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        // let newMessage: Message | null = null;
 
         // TODO: need a better way to throw 'limited'... add toast component.
         try {
@@ -422,7 +407,7 @@ const Chat = ({
 
         // Generate a new summary using the model
         const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-        const prompt = `Update the following summary based on the last message:\n${summaryContent}`;
+        const prompt = `Update the following summary based on the last message using the following\n\n${summaryContent}\n\nYou should attach the last message to the end of the summary and mark it as the most pertinent for any follow up questions.`;
 
         try {
             const result = await model.generateContent(prompt);
@@ -449,12 +434,6 @@ const Chat = ({
     async function handleSubmit(event: React.SyntheticEvent<HTMLFormElement>) {
         event.preventDefault();
 
-        // blur focus on mobile
-
-        if (window.innerWidth < 600) {
-            event.currentTarget["message"]?.blur();
-        }
-
         const value = input.trim();
         setInput("");
 
@@ -475,8 +454,6 @@ const Chat = ({
             messages: [...thread.messages, newUserMessage]
         };
         try {
-            // optimistically add user messages to indexdb, this should push a user message to into the chat. If a chat thread doesn't exist, create one.
-
             updateThread(thread.threadId, newUserMessage).then((resultSet) => {
                 if (resultSet.success) {
                     setThread(updatedThread);
@@ -595,17 +572,9 @@ const Chat = ({
         identifier: "summarize-page" | "main-purpose" | "explain-complex-terms",
         prompt: string
     ) {
-        // this function will need to interact with a content script / service worker to grab the current pages content.
-        // TODO: change this, we don't just want text content... better understand and page-makeup may require adding additional html elements?
-
-        // TODO: Merge with preferences object (if the user wants additional questions they can ask chatgpt to help them understand the text better?)
-
-        // TODO: Restructure this... switch on identifier first and create prompt + send relevant message and get a response... could have toast message set in a local state with a useEffect to trigger.
-
-        // TODO: Cache this... don't want to repeat scraping if we don't have to... will need to identify if the page has been pulled from somehow.
+        // TODO: Refactor | better prompt design, offload prompt merging to a util function or something...
         const pageContent = await fetchPageTextContent();
 
-        // TODO: At the moment I have just fetched the gemini response and set the user message to be the prompt, without what actually goes to Gemini in there.
         const newUserMessage: Message = {
             role: "user",
             content: prompt,
@@ -705,8 +674,8 @@ const Chat = ({
                 );
             }
         } catch (error) {
-            // TODO: handle generative ai blocking it and report it as a toast message... can't do much about sensitive content being requested...
-            console.error(error);
+            // TODO: handle generative ai blocking it and report it as a toast message... what can I do about sensitive content being requested to be analysed?
+            console.warn(error);
         }
 
         setTypewriter(false);

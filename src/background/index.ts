@@ -121,17 +121,24 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
                     return true;
 
                 case "STOP_RECORDING":
-                    sendResponse({ success: true });
-                    return true;
-
-                case "AUDIO_DATA":
-                    // Relay the audio data to the side panel
                     chrome.runtime.sendMessage({
-                        action: "AUDIO_DATA",
-                        audioBlob: message.audioBlob
+                        action: "STOP_RECORDING",
+                        payload: message.payload
                     });
                     sendResponse({ success: true });
+                    console.log("send from background script", message.payload);
                     return true;
+
+                // case "AUDIO_DATA":
+                //     // Relay the audio data to the side panel
+                //     chrome.runtime.sendMessage({
+                //         action: "AUDIO_DATA",
+                //         payload: message.payload
+                //     });
+
+                //     console.log("from background payload:", message.payload);
+                //     sendResponse({ success: true });
+                //     return true;
 
                 case "MENU_OPTION_CLICKED":
                     sendResponse({ success: true });
