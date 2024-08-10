@@ -124,6 +124,15 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
                     sendResponse({ success: true });
                     return true;
 
+                case "AUDIO_DATA":
+                    // Relay the audio data to the side panel
+                    chrome.runtime.sendMessage({
+                        action: "AUDIO_DATA",
+                        audioBlob: message.audioBlob
+                    });
+                    sendResponse({ success: true });
+                    return true;
+
                 case "MENU_OPTION_CLICKED":
                     sendResponse({ success: true });
                     return true;

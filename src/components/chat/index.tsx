@@ -132,7 +132,8 @@ const Chat = ({
                 | "MENU_OPTION_CLICKED"
                 | "GET_PAGE_TEXT_CONTENT"
                 | "TOGGLE_HOVER_MODE"
-                | "STOP_RECORDING";
+                | "STOP_RECORDING"
+                | "AUDIO_DATA";
             payload?: any;
         }) => {
             if (message.action === "MENU_OPTION_CLICKED") {
@@ -162,8 +163,19 @@ const Chat = ({
                 } else {
                     console.error("Menu option somehow didn't exist! ", title);
                 }
+            } else if (message.action === "AUDIO_DATA" && message.payload) {
+                const { blob } = message.payload;
+                console.log(blob);
+                const audioUrl = URL.createObjectURL(blob);
+                const audio = new Audio(audioUrl);
+                audio.play();
             } else if (message.action === "STOP_RECORDING") {
                 setRecording(false);
+
+                const { title, content, inlineData, elementType } =
+                    message.payload;
+
+                console.log(title, content, inlineData, elementType);
             }
         };
 

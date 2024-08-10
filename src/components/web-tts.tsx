@@ -17,15 +17,15 @@ interface TranscriptWord {
 const WebTTS = ({
     messageId,
     text,
-    displayAudioPlayer,
     audioInProgress,
-    setAudioInProgress
+    setAudioInProgress,
+    languageId
 }: {
     messageId: string;
     text: string;
-    displayAudioPlayer: (value: boolean) => void;
     audioInProgress: boolean;
     setAudioInProgress: (value: boolean) => void;
+    languageId: "en-AU" | "es";
 }) => {
     const [speaking, setSpeaking] = useState(false);
     const [sanitizedText, setSanitizedText] = useState("");
@@ -180,7 +180,7 @@ const WebTTS = ({
         // TODO: grab this from preferences, map to language (save this mapping in database {title: English; label: en-AU})
         // https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisUtterance/lang
 
-        utterance.lang = "en-AU";
+        utterance.lang = languageId;
         // utterance.lang = "es-419";
 
         utterance.onstart = () => {

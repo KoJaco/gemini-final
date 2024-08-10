@@ -1,5 +1,3 @@
-// import { Button } from "@/components/ui/button";
-// import { sluggify } from "@/lib/utils";
 // @ts-expect-error
 import cssText from "data-text:@/style.css";
 import {
@@ -17,7 +15,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 
 export const config: PlasmoCSConfig = {
     matches: ["<all_urls>"]
-    // world: "MAIN" // are we modifying the window object yet?
 };
 
 export const getStyle = () => {
@@ -28,8 +25,6 @@ export const getStyle = () => {
 
 console.log("content script loaded");
 
-// I want to return text content with their associative tags. I also only want to return meaningful tags to be analysed... very difficult to also consider span and div content as this can result in many single character strings returned... :/
-
 type MenuOptionTitle =
     | "Describe"
     | "Describe and Translate"
@@ -38,6 +33,8 @@ type MenuOptionTitle =
     | "Explain"
     | "Translate"
     | "Summarize and Translate";
+
+let audioChunks: Blob[] = [];
 
 const ContextMenu = () => {
     // TODO: Add personal prompt that someone can ask about a certain hovered section.
@@ -51,6 +48,8 @@ const ContextMenu = () => {
         [key: string]: { title: MenuOptionTitle; icon: React.ReactNode }[];
     }>({});
 
+    const mediaRecorderElementRef = useRef<MediaRecorder | null>(null);
+
     const [isOverMenu, setIsOverMenu] = useState(false);
 
     const highlightedElementRef = useRef<HTMLElement | null>(null);
@@ -61,10 +60,139 @@ const ContextMenu = () => {
         if (voiceCommands !== null) {
             setHoverMode(hoverMode);
             setListening(voiceCommands);
+            if (voiceCommands) {
+                getUserMicPermission().then(() => {
+                    setHoverMode(hoverMode);
+
+                    setListening(voiceCommands);
+                    // TODO: this is not turning off...
+                    if (mediaRecorderElementRef.current === null && listening) {
+                        startRecording();
+                    }
+                });
+            }
         } else {
             setHoverMode(hoverMode);
         }
     }, []);
+
+    async function getUserMicPermission(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            // Using navigator.mediaDevices.getUserMedia to request microphone access
+            navigator.mediaDevices
+                .getUserMedia({ audio: true })
+                .then((stream) => {
+                    // Permission granted, handle the stream if needed
+                    console.log("Microphone access granted");
+
+                    // Stop the tracks to prevent the recording indicator from being shown
+                    stream.getTracks().forEach(function (track) {
+                        track.stop();
+                    });
+
+                    resolve();
+                })
+                .catch((error) => {
+                    console.error(
+                        "Error requesting microphone permission",
+                        error
+                    );
+
+                    reject(error);
+                });
+        });
+    }
+
+    async function startRecording(): Promise<void> {
+        try {
+            const stream: MediaStream =
+                await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorderElementRef.current = mediaRecorder; // Store the mediaRecorder instance in the ref
+
+            mediaRecorder.ondataavailable = (event: BlobEvent) => {
+                audioChunks.push(event.data);
+                console.log("Data available:", event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                console.log("Recording stopped.");
+                processAudioChunks();
+            };
+
+            mediaRecorder.start();
+            console.log("Recording started.");
+        } catch (error) {
+            console.error("Error starting recording:", error);
+        }
+    }
+
+    function stopRecording(): void {
+        const mediaRecorder = mediaRecorderElementRef.current; // Access the mediaRecorder from the ref
+
+        if (mediaRecorder && mediaRecorder.state === "recording") {
+            console.log("Stopping recording...");
+            mediaRecorder.stop();
+
+            // Fallback: if onstop doesn't trigger, manually process the audio
+            setTimeout(() => {
+                if (mediaRecorder.state === "inactive") {
+                    console.warn("Fallback: Processing audio chunks manually.");
+                    processAudioChunks();
+                }
+            }, 100);
+        } else {
+            console.warn("MediaRecorder is not in a recording state.");
+        }
+    }
+
+    function processAudioChunks() {
+        if (audioChunks.length > 0) {
+            const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
+            console.log("Processed audio:", audioBlob);
+
+            chrome.runtime.sendMessage({
+                action: "AUDIO_DATA",
+                payload: { blob: audioBlob }
+            });
+
+            audioChunks = [];
+            mediaRecorderElementRef.current === null;
+        } else {
+            console.warn("No audio chunks to process.");
+        }
+    }
+
+    const handleStopRecording = async () => {
+        const element = highlightedElementRef.current;
+        if (!element) return;
+
+        const data = {
+            title: "voiceCommand",
+            content: element.outerHTML,
+            inlineData: null,
+            elementType: element.tagName
+        };
+
+        setListening(false);
+        setHoverMode(false);
+        setIsVisible(false);
+
+        stopRecording(); // Call the stopRecording function here
+
+        chrome.runtime.sendMessage(
+            {
+                action: "STOP_RECORDING",
+                payload: data
+            },
+            (response) => {
+                console.log("Stop recording triggered", response);
+            }
+        );
+
+        highlightedElementRef.current.style.border = "";
+        highlightedElementRef.current = null;
+    };
 
     const handleSetIsOverMenu = useCallback((value: boolean) => {
         setIsOverMenu(value);
@@ -146,26 +274,6 @@ const ContextMenu = () => {
             console.warn("Error in fetching image... report this");
             return { data: "", mimeType: "" };
         }
-    };
-
-    const handleStopRecording = async () => {
-        chrome.runtime.sendMessage(
-            {
-                action: "STOP_RECORDING"
-            },
-            (response) => {
-                console.log("Stop recording triggered", response);
-            }
-        );
-
-        if (highlightedElementRef.current) {
-            highlightedElementRef.current.style.border = "";
-            highlightedElementRef.current = null;
-        }
-
-        setListening(false);
-        setHoverMode(false);
-        setIsVisible(false);
     };
 
     const sendMessage = async (menuOption: MenuOptionTitle) => {
@@ -405,8 +513,7 @@ const ContextMenu = () => {
                     className="fixed z-[9999] rounded-[8px] border shadow-2xl transition-all duration-300 py-2 px-4 gap-y-[30px] text-sm bg-[#0c0a09]/75 backdrop-blur-lg border-[#292524] w-[200px] h-auto flex flex-col"
                     style={{
                         top: mousePosition.y,
-                        // left: mousePosition.x,
-                        left: 200,
+                        left: mousePosition.x,
                         transform: "translate(-50%, 0)"
                     }}
                     onMouseLeave={() => handleSetIsOverMenu(false)}>

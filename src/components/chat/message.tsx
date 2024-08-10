@@ -52,7 +52,6 @@ import { MainPlayButton } from "../audio-player/main-play-button";
 import { Button } from "../ui/button";
 import { IconGemini, IconUser } from "../ui/icons";
 import WebTTS from "../web-tts";
-import { AudioPlayerWithHighlighting } from "./highlighter";
 
 // TODO: functionality change... should I have the audio player hover on the side or be underneath/above the component?
 
@@ -442,7 +441,10 @@ export function ChatMessage({
                                     text={displayedText}
                                     audioInProgress={audioIsInProgress}
                                     setAudioInProgress={setAudioIsInProgress}
-                                    displayAudioPlayer={setDisplayAudio}
+                                    languageId={
+                                        preferencesState.applicationSettings
+                                            .translateToLanguage.value.id
+                                    }
                                 />
                             </div>,
                             document.getElementById(

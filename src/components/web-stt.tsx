@@ -20,14 +20,14 @@ interface SpeechToTextProps {
 
 interface SpeechToTextRef {
     isListening: boolean;
-    buttonRef: HTMLButtonElement | null;
+    buttonRef: HTMLDivElement | null;
 }
 
 const WebSTT = forwardRef<SpeechToTextRef, SpeechToTextProps>((props, ref) => {
     const [isListening, setIsListening] = useState(false);
     const [transcript, setTranscript] = useState("");
     const recognitionRef = useRef<SpeechRecognition | null>(null);
-    const buttonRef = useRef<HTMLButtonElement | null>(null);
+    const buttonRef = useRef<HTMLDivElement | null>(null);
 
     // destructure
     const { stopRecording, setStopRecording, saveTranscript } = props;
@@ -85,16 +85,17 @@ const WebSTT = forwardRef<SpeechToTextRef, SpeechToTextProps>((props, ref) => {
         if (recognitionRef.current) {
             recognitionRef.current.stop();
             saveTranscript(transcript);
+            console.log(transcript);
             setIsListening(false);
         }
     };
 
     return (
-        <button
+        <div
             ref={buttonRef}
             onClick={isListening ? handleStopListening : handleStartListening}>
             {isListening ? "Stop Listening" : "Start Listening"}
-        </button>
+        </div>
     );
 });
 

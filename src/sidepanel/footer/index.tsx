@@ -12,7 +12,7 @@ import type { AvailableViews, ChatThread } from "@/lib/types";
 import clsx from "clsx";
 import { Mic } from "lucide-react";
 import { nanoid } from "nanoid";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 type Props = {
     currentView: AvailableViews;
@@ -27,6 +27,11 @@ const SidepanelFooter = ({
 }: Props) => {
     const [hoverMode, setHoverMode] = useState<boolean>(false);
     const { preferencesState, setRecording, recording } = useAppStore();
+
+    // Audio capture
+    const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
 
     useEffect(() => {
         if (
@@ -84,6 +89,11 @@ const SidepanelFooter = ({
                         .useVoiceCommandsOnHoverMode
                 ) {
                     handleToggleHoverVoiceCommands();
+                    // if (isListening) {
+                    //     handleStopListening();
+                    // } else {
+                    //     handleStartListening();
+                    // }
                 } else {
                     handleToggleHoverMode();
                 }
@@ -169,21 +179,6 @@ const SidepanelFooter = ({
                                     .useVoiceCommandsOnHoverMode && (
                                     <Mic className="" />
                                 )}
-
-                            {/* <span
-                                className={clsx(
-                                    preferencesState.applicationSettings
-                                        .useVoiceCommandsOnHoverMode &&
-                                        button.labelName === "hover-mode" &&
-                                        "scale-90 -translate-x-[6px] -translate-y-[6px] relative"
-                                )}>
-                                {button.icon}
-                            </span>
-                            {button.labelName === "hover-mode" &&
-                                preferencesState.applicationSettings
-                                    .useVoiceCommandsOnHoverMode && (
-                                    <Mic className="absolute w-4 h-4 bottom-0.5 right-0.5" />
-                                )} */}
                         </div>
                     </TooltipTrigger>
                     <TooltipContent className="max-w-[200px] bg-background text-muted-foreground shadow text-md border border-muted-foreground/20">

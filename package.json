@@ -76,7 +76,8 @@
             "tts",
             "sidePanel",
             "scripting",
-            "storage"
+            "storage",
+            "tabCapture"
         ]
     }
 }

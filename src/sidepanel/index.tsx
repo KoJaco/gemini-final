@@ -24,6 +24,7 @@ import {
 import { useAppStore } from "@/lib/stores/appStore";
 import type { AvailableViews, ChatThread, Message } from "@/lib/types";
 import clsx from "clsx";
+import { Mic } from "lucide-react";
 import { nanoid } from "nanoid";
 import React, { useEffect, useState } from "react";
 
@@ -62,7 +63,6 @@ const Sidepanel = () => {
         recording
     } = useAppStore();
 
-    console.log("recording", recording);
     useEffect(() => {
         const initDefaults = async () => {
             try {
@@ -213,7 +213,8 @@ const Sidepanel = () => {
         geminiApiKey,
         whisperApiKey,
         savePreferencesState,
-        setCurrentChatThread
+        setCurrentChatThread,
+        recording
     ]);
 
     function renderCurrentView() {
@@ -274,10 +275,52 @@ const Sidepanel = () => {
         <Providers>
             <div className="flex flex-col w-full h-[100vh] max-h-[100vh] pt-4 overflow-x-hidden bg-gradient-to-b from-background to-background/50">
                 {geminiApiKey ? (
-                    <div className="flex flex-col h-full w-full">
+                    <div className="flex flex-col h-full w-full relative">
                         <header className="px-4 mb-4 flex-col flex">
                             <h1 className="text-lg text-left">Gemini Helper</h1>
                         </header>
+
+                        {/* recording for prompt voice commands */}
+                        {!preferencesState.applicationSettings
+                            .useVoiceCommandsOnHoverMode &&
+                            recording && (
+                                <div className="absolute z-[1000] -top-4 bottom-16 w-full left-0 bg-black/75">
+                                    <div className="flex items-center justify-center w-full h-full">
+                                        <div className="w-full h-auto flex items-center justify-center pb-6">
+                                            <button
+                                                title="Stop Recording Voice Command"
+                                                className="relative w-16 h-16 flex items-center justify-center bg-[#ef4444] rounded-full focus:outline-none">
+                                                <span className="absolute w-20 h-20 rounded-full bg-[#ef4444] opacity-25 animate-ping"></span>
+                                                <Mic className="h-8 w-8 text-white" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                        {preferencesState.applicationSettings
+                            .useVoiceCommandsOnHoverMode &&
+                            recording && (
+                                <div className="absolute z-[1000] -top-4 bottom-16 w-full left-0 bg-black/75">
+                                    <div className="flex items-center justify-center w-full h-full">
+                                        <div className="w-full h-auto flex items-center justify-center pb-6">
+                                            <div className="flex flex-col items-center bg-background border border-muted/50 backdrop-blur-lg p-4 rounded-lg shadow">
+                                                <div className="relative w-16 h-16 flex items-center justify-center bg-muted-foreground rounded-full focus:outline-none animate-pulse">
+                                                    {/* <span className="absolute w-20 h-20 rounded-full bg-muted-foreground opacity-25 animate-ping"></span> */}
+                                                    <Mic className="h-8 w-8 text-background" />
+                                                </div>
+                                                <h2 className="mt-[20px]">
+                                                    Listening for Speech...
+                                                </h2>
+                                                <p className="mt-[10px] max-w-[200px] text-center text-muted-foreground">
+                                                    Try hovering over something
+                                                    in your current website.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                         {/* main content */}
                         {renderCurrentView()}
