@@ -267,7 +267,11 @@ const Sidepanel = () => {
     // TODO: add skeleton
 
     if (!currentChatThread) {
-        return <div>loading...</div>;
+        return (
+            <div className="flex flex-col w-full h-[100vh] max-h-[100vh] pt-4 overflow-x-hidden bg-gradient-to-b from-background to-background/50">
+                <p>loading...</p>
+            </div>
+        );
     }
 
     return (
@@ -375,10 +379,12 @@ const Sidepanel = () => {
 
                                     <CardDescription>
                                         <span className="mb-4">
-                                            Lorem ipsum dolor, sit amet
-                                            consectetur adipisicing elit.
-                                            Similique modi odit reprehenderit
-                                            facilis assumenda architecto
+                                            This step is only required while the
+                                            application is in development.
+                                            Please see the timeline in the app's
+                                            welcome page to get an idea of the
+                                            improvements and features that are
+                                            on the way.
                                         </span>
                                         {error.display && (
                                             <span className="text-red-500 mb-4 whitespace-normal w-full">

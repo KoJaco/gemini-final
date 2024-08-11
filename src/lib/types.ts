@@ -54,7 +54,7 @@ export const AI_INTERACTIONS_VALUE = {
         "provide additional explanations and context to your response where necessary.",
 
     EXAMPLES:
-        "include examples to illustrate complex concepts in your response. If there are not relatively complex concepts expressed simply mention why the concept cannot be illustrated.",
+        "include examples to illustrate complex concepts in your response. If there are no relatively complex concepts expressed simply mention why the concept cannot be illustrated.",
 
     FOLLOW_UP_QUESTIONS:
         "provide some follow-up questions that I could ask or research myself to help me understand your response better.",
