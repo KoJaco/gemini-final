@@ -24,7 +24,7 @@ import {
 import { useAppStore } from "@/lib/stores/appStore";
 import type { AvailableViews, ChatThread, Message } from "@/lib/types";
 import clsx from "clsx";
-import { Mic } from "lucide-react";
+import { CircleHelp, Mic } from "lucide-react";
 import { nanoid } from "nanoid";
 import React, { useEffect, useState } from "react";
 
@@ -276,8 +276,17 @@ const Sidepanel = () => {
             <div className="flex flex-col w-full h-[100vh] max-h-[100vh] pt-4 overflow-x-hidden bg-gradient-to-b from-background to-background/50">
                 {geminiApiKey ? (
                     <div className="flex flex-col h-full w-full relative">
-                        <header className="px-4 mb-4 flex-col flex">
-                            <h1 className="text-lg text-left">Gemini Helper</h1>
+                        <header className="px-4 mb-4 items-center justify-between flex">
+                            <h1 className="text-lg text-left">Companion</h1>
+                            <div>
+                                <Button
+                                    size="icon"
+                                    title="Open Welcome Page"
+                                    variant="ghost"
+                                    onClick={() => openWelcomePage()}>
+                                    <CircleHelp className="w-5 h-5" />
+                                </Button>
+                            </div>
                         </header>
 
                         {/* recording for prompt voice commands */}
