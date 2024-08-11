@@ -1,33 +1,54 @@
-This is a [Plasmo extension](https://docs.plasmo.com/) project bootstrapped with [`plasmo init`](https://www.npmjs.com/package/plasmo).
+# Companion Chrome Extension (Development)
+
+**Companion** is a Chrome extension designed to make the web more accessible by simplifying complex content, providing detailed image descriptions, and offering customizable interaction settings. Whether you need content summarized, translated, or read aloud, Companion leverages the power of the Gemini API to deliver a personalized and inclusive browsing experience.
+
+## Built With
+
+-   **Plasmo** - A framework for building browser extensions with ease.
+-   **React** - A JavaScript library for building user interfaces.
+-   **TailwindCSS** - A utility-first CSS framework for rapid UI development.
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-pnpm dev
-# or
-npm run dev
-```
+To run this project locally, ensure you have the following installed on your machine:
 
-Open your browser and load the appropriate development build. For example, if you are developing for the chrome browser, using manifest v3, use: `build/chrome-mv3-dev`.
+-   **Node.js** - You can download it from [here](https://nodejs.org/).
+-   **npm** - Node package manager, usually comes with Node.js.
+-   **Git** - Version control system, you can install it from [here](https://git-scm.com/).
 
-You can start editing the popup by modifying `popup.tsx`. It should auto-update as you make changes. To add an options page, simply add a `options.tsx` file to the root of the project, with a react component default exported. Likewise to add a content page, add a `content.ts` file to the root of the project, importing some module and do some logic, then reload the extension on your browser.
+### Installation
 
-For further guidance, [visit our Documentation](https://docs.plasmo.com/)
+1. **Clone the repository:**
 
-## Making production build
+    ```bash
+    git clone https://github.com/KoJaco/gemini-final.git
+    ```
 
-Run the following:
+2. **Install dependencies:**
 
-```bash
-pnpm build
-# or
-npm run build
-```
+    ```bash
+    cd ./gemini-final
+    pnpm install
+    ```
 
-This should create a production bundle for your extension, ready to be zipped and published to the stores.
+3. **Run the Dev server:**
 
-## Submit to the webstores
+    ```bash
+    pnpm dev
+    # or
+    npm run dev
+    ```
 
-The easiest way to deploy your Plasmo extension is to use the built-in [bpp](https://bpp.browser.market) GitHub action. Prior to using this action however, make sure to build your extension and upload the first version to the store to establish the basic credentials. Then, simply follow [this setup instruction](https://docs.plasmo.com/framework/workflows/submit) and you should be on your way for automated submission!
+4. **Load package:**
+
+    - Open your browser and navigate to `chrome://extensions/`.
+    - Enable developer mode by toggling the switch in the top right corner.
+    - Click on "Load unpacked" and select the `dist` directory within your project folder: `build/chrome-mv3-dev`.
+
+### Preface and About
+
+Hi, I'm Kori, a passionate developer (although I’m not yet working in the industry) focused on creating technology that provides tangible value to people’s everyday lives. With Companion, my goal is to bridge the gap between complex web content and the diverse needs of users around the world (and also just to make something interesting!). This extension is still in development, and I will continuously work to enhance its features, capabilities, and overall performance and usability.
+
+I’ve been chipping away at this project over the last few months after my day job as a marine electrician. Fortunately, I had the last week of the competition to really put in some time before the submission deadline. Despite this, there’s still a long way to go! So, expect some bugs, performance bottlenecks, and breaking changes over the next few months.
