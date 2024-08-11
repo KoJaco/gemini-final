@@ -24,6 +24,24 @@ chrome.action.onClicked.addListener(() => {
     chrome.tabs.create({ url: tabUrl });
 });
 
+chrome.runtime.onConnect.addListener((port) => {
+    if (port.name === "VOICE_COMMAND_PORT") {
+        port.onMessage.addListener((msg) => {
+            const { payload } = msg;
+
+            console.log("background payload: ", payload);
+
+            // Send the audioBlob to the side panel
+            chrome.runtime.sendMessage({
+                action: "VOICE_COMMAND_DATA_TO_SIDEPANEL",
+                payload: {
+                    payload
+                }
+            });
+        });
+    }
+});
+
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     // console.log("Message Fired: ", message.action);
 

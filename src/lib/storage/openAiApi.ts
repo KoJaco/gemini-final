@@ -116,3 +116,63 @@ export const getTranscription = async (
         };
     }
 };
+
+export const getSimpleTranscription = async (
+    audioBlob: Blob
+): Promise<{ success: boolean; message: string; transcript: Transcript }> => {
+    try {
+        const apiKeyRes = await getApiKey("whisperApiKey");
+
+        if (apiKeyRes.success) {
+            const formData = new FormData();
+
+            const file = new File([audioBlob], "audio.mpeg", {
+                type: "audio/mpeg"
+            });
+
+            formData.append("file", file);
+
+            formData.append("model", "whisper-1");
+            formData.append("response_format", "verbose_json");
+
+            const response = await fetch(
+                "https://api.openai.com/v1/audio/transcriptions",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${apiKeyRes.data}`
+                    },
+                    body: formData
+                }
+            );
+
+            if (!response.ok) {
+                return {
+                    success: false,
+                    message: `Could not parse response from Whisper API: ${response}`,
+                    transcript: null
+                };
+            }
+
+            const result = await response.json();
+
+            return {
+                success: true,
+                message: "Successfully retrieved transcription!",
+                transcript: result
+            };
+        } else {
+            return {
+                success: false,
+                message: "Could not retrieve API key",
+                transcript: null
+            };
+        }
+    } catch (error) {
+        return {
+            success: false,
+            message: `An error occurred: ${error}`,
+            transcript: null
+        };
+    }
+};

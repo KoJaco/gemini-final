@@ -36,8 +36,10 @@ type MenuOptionTitle =
 
 const ContextMenu = () => {
     // TODO: Add personal prompt that someone can ask about a certain hovered section.
-    // TODO: edge cases :: 1. hovering over a section that includes multiple images, 2. describing multiple images,
+    // TODO: edge cases :: 1. hovering over a section that includes multiple images, 2. describing multiple images, 3. various different html elements and content -- tables, figures, etc.
     // TODO: fix styling bugs (with context menu popup, text colour taking on websites, inline-script blocked by CORS, )
+    // TODO: voice commands should use a port (chrome.runtime.connect) for continuous communication... don't think you can send blobs over messaging? base64 string?
+    // TODO: add a useFocus settings to, instead of hovering, focus over elements in the page (this shouldn't be every single element obviously, maybe just ones that include meaningful content... always have a disable setting button accessible while in this mode.)
     const [hoverMode, setHoverMode] = useState(false);
     const [listening, setListening] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
@@ -48,6 +50,8 @@ const ContextMenu = () => {
 
     const mediaRecorderElementRef = useRef<MediaRecorder | null>(null);
     const audioChunks = useRef<Blob[]>([]);
+
+    const portRef = useRef<chrome.runtime.Port | null>(null);
 
     const [isOverMenu, setIsOverMenu] = useState(false);
 
@@ -73,249 +77,35 @@ const ContextMenu = () => {
                 console.error("Error getting microphone permission:", error);
             }
         }
-        // if (voiceCommands !== null) {
-        //     setHoverMode(hoverMode);
-        //     setListening(voiceCommands);
-        //     if (voiceCommands) {
-        //         const micRes = await getUserMicPermission();
-
-        //         if (micRes.success) {
-        //             setHoverMode(hoverMode);
-        //             setListening(voiceCommands);
-
-        //             console.log("Mic Perm. Res success");
-        //             startRecording();
-        //         }
-        //     }
-        // } else {
-        //     setHoverMode(hoverMode);
-        // }
     }, []);
 
-    async function getUserMicPermission(): Promise<{ success: boolean }> {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: true
-            });
-            stream.getTracks().forEach((track) => track.stop()); // Stop the tracks to prevent the recording indicator
-            return { success: true };
-        } catch (error) {
-            console.error("Error requesting microphone permission", error);
-            return { success: false };
-        }
-    }
-
-    async function startRecording(): Promise<void> {
-        try {
-            console.log("Start recording hit");
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: true
-            });
-            const mediaRecorder = new MediaRecorder(stream);
-            mediaRecorderElementRef.current = mediaRecorder; // Store the mediaRecorder instance in the ref
-
-            console.log("Recorder initialized:", mediaRecorder);
-
-            mediaRecorder.ondataavailable = (event: BlobEvent) => {
-                audioChunks.current.push(event.data);
-                console.log("Data available:", event.data);
-            };
-
-            mediaRecorder.start();
-            console.log("Recording started.");
-        } catch (error) {
-            console.error("Error starting recording:", error);
-        }
-    }
-
-    // function stopRecording(): void {
-    //     const mediaRecorder = mediaRecorderElementRef.current;
-
-    //     if (mediaRecorder && mediaRecorder.state === "recording") {
-    //         console.log("Stopping recording...");
-    //         mediaRecorder.stop();
-
-    //         // Fallback: if onstop doesn't trigger, manually process the audio
-    //         setTimeout(() => {
-    //             if (mediaRecorder.state === "inactive") {
-    //                 console.warn("Fallback: Processing audio chunks manually.");
-    //                 processAudioChunks();
-    //             }
-    //         }, 100);
-    //     } else {
-    //         console.warn("MediaRecorder is not in a recording state.");
-    //     }
-    // }
-
-    // function processAudioChunks() {
-    //     if (audioChunks.current.length > 0) {
-    //         const audioBlob = new Blob(audioChunks.current, {
-    //             type: "audio/wav"
-    //         });
-    //         console.log("Processed audio:", audioBlob);
-
-    //         chrome.runtime.sendMessage({
-    //             action: "AUDIO_DATA",
-    //             payload: { blob: audioBlob }
-    //         });
-
-    //         audioChunks.current = [];
-    //         mediaRecorderElementRef.current = null;
-    //     } else {
-    //         console.warn("No audio chunks to process.");
-    //     }
-    // }
-
-    const handleStopRecording = async () => {
-        const element = highlightedElementRef.current;
-        if (!element) return;
-
-        let data = {
-            title: "voiceCommand",
-            content: element.outerHTML,
-            inlineData: { audioBuffer: null }, // Default to null
-            elementType: element.tagName
-        };
-
-        setListening(false);
-        setHoverMode(false);
-        setIsVisible(false);
-
-        const mediaRecorder = mediaRecorderElementRef.current;
-
-        console.log("media recorder", mediaRecorder);
-
-        if (mediaRecorder && mediaRecorder.state === "recording") {
-            console.log("Stopping recording...");
-            mediaRecorder.stop();
-
-            mediaRecorder.onstop = () => {
-                processAndSendAudio(data);
-            };
-
-            // Fallback: if onstop doesn't trigger, manually process the audio
-            setTimeout(() => {
-                if (mediaRecorder.state === "inactive") {
-                    console.warn("Fallback: Processing audio chunks manually.");
-                    processAndSendAudio(data);
-                }
-            }, 100);
-        } else {
-            console.warn("MediaRecorder is not in a recording state.");
-
-            // Send the data without the audio buffer if not recording
-            chrome.runtime.sendMessage(
-                {
-                    action: "STOP_RECORDING",
-                    payload: data
-                },
-                (response) => {
-                    console.log("Stop recording triggered", response);
-                }
-            );
-        }
-
-        if (highlightedElementRef.current) {
-            highlightedElementRef.current.style.border = "";
-            highlightedElementRef.current = null;
-        }
-    };
-
-    function processAndSendAudio(data) {
-        if (audioChunks.current.length > 0) {
-            const audioBlob = new Blob(audioChunks.current, {
-                type: "audio/wav"
-            });
-
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const arrayBuffer = reader.result;
-
-                chrome.runtime.sendMessage(
-                    {
-                        action: "STOP_RECORDING",
-                        payload: {
-                            ...data,
-                            inlineData: { audioBuffer: arrayBuffer }
-                        }
-                    },
-                    (response) => {
-                        console.log("Stop recording triggered", response);
-                    }
-                );
-            };
-
-            reader.readAsArrayBuffer(audioBlob);
-
-            console.log("Processed audio:", audioBlob);
-
-            // Clear the audio chunks and media recorder reference
-            audioChunks.current = [];
-            mediaRecorderElementRef.current = null;
-        } else {
-            console.warn("No audio chunks to process.");
-            // Even if no audio, we should send the data without audio buffer
-            chrome.runtime.sendMessage(
-                {
-                    action: "STOP_RECORDING",
-                    payload: data
-                },
-                (response) => {
-                    console.log(
-                        "Stop recording triggered without audio",
-                        response
-                    );
-                }
-            );
-        }
-    }
-
     // async function getUserMicPermission(): Promise<{ success: boolean }> {
-    //     return new Promise((resolve, reject) => {
-    //         // Using navigator.mediaDevices.getUserMedia to request microphone access
-    //         navigator.mediaDevices
-    //             .getUserMedia({ audio: true })
-    //             .then((stream) => {
-    //                 // Permission granted, handle the stream if needed
-    //                 console.log("Microphone access granted");
-
-    //                 // Stop the tracks to prevent the recording indicator from being shown
-    //                 stream.getTracks().forEach(function (track) {
-    //                     track.stop();
-    //                 });
-
-    //                 resolve({ success: true });
-    //             })
-    //             .catch((error) => {
-    //                 console.error(
-    //                     "Error requesting microphone permission",
-    //                     error
-    //                 );
-
-    //                 reject(error);
-    //             });
-    //     });
+    //     try {
+    //         const stream = await navigator.mediaDevices.getUserMedia({
+    //             audio: true
+    //         });
+    //         stream.getTracks().forEach((track) => track.stop()); // Stop the tracks to prevent the recording indicator
+    //         return { success: true };
+    //     } catch (error) {
+    //         console.error("Error requesting microphone permission", error);
+    //         return { success: false };
+    //     }
     // }
 
     // async function startRecording(): Promise<void> {
     //     try {
     //         console.log("Start recording hit");
-    //         const stream: MediaStream =
-    //             await navigator.mediaDevices.getUserMedia({ audio: true });
+    //         const stream = await navigator.mediaDevices.getUserMedia({
+    //             audio: true
+    //         });
     //         const mediaRecorder = new MediaRecorder(stream);
     //         mediaRecorderElementRef.current = mediaRecorder; // Store the mediaRecorder instance in the ref
 
-    //         console.log("recorder", mediaRecorder);
+    //         console.log("Recorder initialized:", mediaRecorder);
 
     //         mediaRecorder.ondataavailable = (event: BlobEvent) => {
-    //             audioChunks.push(event.data);
+    //             audioChunks.current.push(event.data);
     //             console.log("Data available:", event.data);
-    //         };
-
-    //         mediaRecorder.onstop = async () => {
-    //             console.log("Recording stopped.");
-    //             processAudioChunks();
-    //             mediaRecorderElementRef.current = null;
     //         };
 
     //         mediaRecorder.start();
@@ -325,50 +115,14 @@ const ContextMenu = () => {
     //     }
     // }
 
-    // function stopRecording(): void {
-    //     const mediaRecorder = mediaRecorderElementRef.current; // Access the mediaRecorder from the ref
-
-    //     if (mediaRecorder && mediaRecorder.state === "recording") {
-    //         console.log("Stopping recording...");
-    //         mediaRecorder.stop();
-
-    //         // Fallback: if onstop doesn't trigger, manually process the audio
-    //         setTimeout(() => {
-    //             if (mediaRecorder.state === "inactive") {
-    //                 console.warn("Fallback: Processing audio chunks manually.");
-    //                 processAudioChunks();
-    //             }
-    //         }, 100);
-    //     } else {
-    //         console.warn("MediaRecorder is not in a recording state.");
-    //     }
-    // }
-
-    // function processAudioChunks() {
-    //     if (audioChunks.length > 0) {
-    //         const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
-    //         console.log("Processed audio:", audioBlob);
-
-    //         chrome.runtime.sendMessage({
-    //             action: "AUDIO_DATA",
-    //             payload: { blob: audioBlob }
-    //         });
-
-    //         audioChunks = [];
-    //         mediaRecorderElementRef.current === null;
-    //     } else {
-    //         console.warn("No audio chunks to process.");
-    //     }
-    // }
-
     // const handleStopRecording = async () => {
     //     const element = highlightedElementRef.current;
     //     if (!element) return;
 
-    //     const data = {
+    //     let data = {
     //         title: "voiceCommand",
     //         content: element.outerHTML,
-    //         inlineData: null,
+    //         inlineData: { audioBuffer: null }, // Default to null
     //         elementType: element.tagName
     //     };
 
@@ -376,21 +130,94 @@ const ContextMenu = () => {
     //     setHoverMode(false);
     //     setIsVisible(false);
 
-    //     stopRecording(); // Call the stopRecording function here
+    //     const mediaRecorder = mediaRecorderElementRef.current;
 
-    //     chrome.runtime.sendMessage(
-    //         {
-    //             action: "STOP_RECORDING",
-    //             payload: data
-    //         },
-    //         (response) => {
-    //             console.log("Stop recording triggered", response);
-    //         }
-    //     );
+    //     console.log("media recorder", mediaRecorder);
 
-    //     highlightedElementRef.current.style.border = "";
-    //     highlightedElementRef.current = null;
+    //     if (mediaRecorder && mediaRecorder.state === "recording") {
+    //         console.log("Stopping recording...");
+    //         mediaRecorder.stop();
+
+    //         mediaRecorder.onstop = () => {
+    //             processAndSendAudio(data);
+    //         };
+
+    //         // Fallback: if onstop doesn't trigger, manually process the audio
+    //         setTimeout(() => {
+    //             if (mediaRecorder.state === "inactive") {
+    //                 console.warn("Fallback: Processing audio chunks manually.");
+    //                 processAndSendAudio(data);
+    //             }
+    //         }, 100);
+    //     } else {
+    //         console.warn("MediaRecorder is not in a recording state.");
+
+    //         // Send the data without the audio buffer if not recording
+    //         chrome.runtime.sendMessage(
+    //             {
+    //                 action: "STOP_RECORDING",
+    //                 payload: data
+    //             },
+    //             (response) => {
+    //                 console.log("Stop recording triggered", response);
+    //             }
+    //         );
+    //     }
+
+    //     if (highlightedElementRef.current) {
+    //         highlightedElementRef.current.style.border = "";
+    //         highlightedElementRef.current = null;
+    //     }
     // };
+
+    // function processAndSendAudio(data) {
+    //     if (audioChunks.current.length > 0) {
+    //         const audioBlob = new Blob(audioChunks.current, {
+    //             type: "audio/wav"
+    //         });
+
+    //         const reader = new FileReader();
+    //         reader.onloadend = () => {
+    //             const arrayBuffer = reader.result;
+
+    //             chrome.runtime.sendMessage(
+    //                 {
+    //                     action: "STOP_RECORDING",
+    //                     payload: {
+    //                         ...data,
+    //                         inlineData: { audioBuffer: arrayBuffer }
+    //                     }
+    //                 },
+    //                 (response) => {
+    //                     console.log("Stop recording triggered", response);
+    //                 }
+    //             );
+    //         };
+
+    //         reader.readAsArrayBuffer(audioBlob);
+
+    //         console.log("Processed audio:", audioBlob);
+
+    //         // Clear the audio chunks and media recorder reference
+    //         audioChunks.current = [];
+    //         mediaRecorderElementRef.current = null;
+    //     } else {
+    //         console.warn("No audio chunks to process.");
+    //         // Even if no audio, we should send the data without audio buffer
+    //         chrome.runtime.sendMessage(
+    //             {
+    //                 action: "STOP_RECORDING",
+    //                 payload: data
+    //             },
+    //             (response) => {
+    //                 console.log(
+    //                     "Stop recording triggered without audio",
+    //                     response
+    //                 );
+    //             }
+    //         );
+    //     }
+    // }
 
     const handleSetIsOverMenu = useCallback((value: boolean) => {
         setIsOverMenu(value);
@@ -443,6 +270,99 @@ const ContextMenu = () => {
 
         return elementsWithText.join("<br/>");
     }
+
+    const getUserMicPermission = async (): Promise<{ success: boolean }> => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: true
+            });
+            stream.getTracks().forEach((track) => track.stop()); // Stop the tracks to prevent the recording indicator
+            return { success: true };
+        } catch (error) {
+            console.error("Error requesting microphone permission", error);
+            return { success: false };
+        }
+    };
+
+    const startRecording = async (): Promise<void> => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: true
+            });
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorderElementRef.current = mediaRecorder;
+
+            mediaRecorder.ondataavailable = (event: BlobEvent) => {
+                audioChunks.current.push(event.data);
+            };
+
+            mediaRecorder.start();
+        } catch (error) {
+            console.error("Error starting recording:", error);
+        }
+    };
+
+    const handleStopRecording = async () => {
+        const element = highlightedElementRef.current;
+        if (!element) return;
+
+        let data = {
+            title: "voiceCommand",
+            content: element.outerHTML,
+            inlineData: { audioBuffer: null }, // Default to null
+            elementType: element.tagName
+        };
+
+        setListening(false);
+        setHoverMode(false);
+        setIsVisible(false);
+
+        if (!mediaRecorderElementRef.current) return;
+
+        const mediaRecorder = mediaRecorderElementRef.current;
+
+        if (mediaRecorder.state === "recording") {
+            mediaRecorder.stop();
+
+            mediaRecorder.onstop = () => {
+                if (audioChunks.current.length > 0) {
+                    const audioBlob = new Blob(audioChunks.current, {
+                        type: "audio/wav"
+                    });
+
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const arrayBuffer = reader.result as ArrayBuffer;
+                        const uint8Array = new Uint8Array(arrayBuffer);
+
+                        const arrayData = Array.from(uint8Array);
+
+                        if (portRef.current) {
+                            portRef.current.postMessage({
+                                action: "AUDIO_RECORDED",
+                                payload: {
+                                    ...data,
+                                    inlineData: { audioBuffer: arrayData }
+                                }
+                            });
+                        }
+                    };
+
+                    reader.readAsArrayBuffer(audioBlob);
+
+                    audioChunks.current = [];
+                }
+
+                // Stop all audio tracks to turn off the microphone
+                const stream = mediaRecorder.stream;
+                stream.getTracks().forEach((track) => track.stop());
+            };
+        }
+        if (highlightedElementRef.current) {
+            highlightedElementRef.current.style.border = "";
+            highlightedElementRef.current = null;
+        }
+    };
 
     const fetchImageData = async (url: string) => {
         // convert to base64 string
@@ -521,6 +441,21 @@ const ContextMenu = () => {
             }
         );
     };
+
+    // ports
+    useEffect(() => {
+        portRef.current = chrome.runtime.connect({
+            name: "VOICE_COMMAND_PORT"
+        });
+
+        portRef.current.onDisconnect.addListener(() => {
+            portRef.current = null;
+        });
+
+        return () => {
+            portRef.current?.disconnect();
+        };
+    }, []);
 
     // Listeners
     useEffect(() => {

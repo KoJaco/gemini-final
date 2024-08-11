@@ -10,7 +10,6 @@ import {
     CardTitle
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import WebTTS from "@/components/web-tts";
 import { defaultPreferences } from "@/lib/constants";
 import { useScrollAnchor } from "@/lib/hooks/use-scroll-anchor";
 import { Providers } from "@/lib/providers";
@@ -23,13 +22,9 @@ import {
 } from "@/lib/storage/secure";
 import { useAppStore } from "@/lib/stores/appStore";
 import type { AvailableViews, ChatThread, Message } from "@/lib/types";
-import clsx from "clsx";
 import { CircleHelp, Mic } from "lucide-react";
 import { nanoid } from "nanoid";
 import React, { useEffect, useState } from "react";
-
-import { sendToBackground } from "@plasmohq/messaging";
-import { useStorage } from "@plasmohq/storage/hook";
 
 import SidepanelFooter from "./footer";
 import { MainView, PreferencesView, ThreadsView } from "./views";
@@ -269,7 +264,10 @@ const Sidepanel = () => {
     if (!currentChatThread) {
         return (
             <div className="flex flex-col w-full h-[100vh] max-h-[100vh] pt-4 overflow-x-hidden bg-gradient-to-b from-background to-background/50">
-                <p>loading...</p>
+                <p>
+                    No current chat thread, try closing and opening the
+                    extension.
+                </p>
             </div>
         );
     }

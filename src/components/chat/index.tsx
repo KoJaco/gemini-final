@@ -7,6 +7,7 @@ import {
     saveSummaryToThread,
     updateThread
 } from "@/lib/storage/indexed-db";
+import { getSimpleTranscription } from "@/lib/storage/openAiApi";
 import { useAppStore } from "@/lib/stores/appStore";
 import type {
     ChatThread,
@@ -16,6 +17,7 @@ import type {
 } from "@/lib/types";
 import {
     GoogleGenerativeAI,
+    type FileDataPart,
     type GenerativeContentBlob,
     type InlineDataPart,
     type Part
@@ -123,16 +125,18 @@ const Chat = ({
 
     const [contextOption, setContextOption] = useState(null);
 
+    const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+
     // TODO: Extrapolate out types on put into single file.
 
     // handle forwarded messages from background script.
     useEffect(() => {
-        const handleMessage = (message: {
+        const handleMessage = async (message: {
             action:
                 | "MENU_OPTION_CLICKED"
                 | "GET_PAGE_TEXT_CONTENT"
                 | "TOGGLE_HOVER_MODE"
-                | "STOP_RECORDING"
+                | "VOICE_COMMAND_DATA_TO_SIDEPANEL"
                 | "AUDIO_DATA";
             payload?: any;
         }) => {
@@ -163,13 +167,132 @@ const Chat = ({
                 } else {
                     console.error("Menu option somehow didn't exist! ", title);
                 }
-            } else if (message.action === "STOP_RECORDING") {
+            } else if (message.action === "VOICE_COMMAND_DATA_TO_SIDEPANEL") {
                 setRecording(false);
 
-                const { title, content, inlineData, elementType } =
-                    message.payload;
+                console.log("Chat", message.payload.payload);
 
-                console.log(title, content, inlineData, elementType);
+                // Convert the received array back to a Uint8Array
+                const uint8Array = new Uint8Array(
+                    message.payload.payload.inlineData.audioBuffer
+                );
+                const audioBlob = new Blob([uint8Array], { type: "audio/wav" });
+                console.log("audio in chat: ", audioBlob);
+                setAudioBlob(audioBlob);
+                const res = await getSimpleTranscription(audioBlob);
+
+                if (res.success) {
+                    setTypewriter(true);
+
+                    const newUserMessage: Message = {
+                        role: "system",
+                        content: res.transcript.text,
+                        id: nanoid(),
+                        createdAt: new Date().toISOString(),
+                        threadId: thread.threadId
+                    };
+
+                    const updatedThread = {
+                        ...thread,
+                        messages: [...thread.messages, newUserMessage]
+                    };
+
+                    // optimistically set thread with new message
+
+                    updateThread(thread.threadId, newUserMessage).then(
+                        (resultSet) => {
+                            if (resultSet.success) {
+                                setThread(updatedThread);
+                            } else {
+                                console.error(resultSet.message);
+                            }
+                        }
+                    );
+
+                    try {
+                        const currentSummary =
+                            (await getSummaryOnThread(thread.threadId))
+                                ?.content || "No current summary";
+
+                        const aiResponse = await fetchData(
+                            `You are responsible for working out how a user's voice command related to the content of a particular section of a website. The user's command is as follows: ${res.transcript.text}. Here is the content in question that the user is asking about: ${message.payload.payload.content}`
+                        );
+
+                        if (aiResponse.success) {
+                            const newGeminiMessage: Message = {
+                                role: "assistant",
+                                content: aiResponse.data,
+                                id: nanoid(),
+                                createdAt: new Date().toISOString(),
+                                threadId: thread.threadId
+                            };
+                            const newThread = {
+                                ...updatedThread,
+                                messages: [
+                                    ...updatedThread.messages,
+                                    newGeminiMessage
+                                ]
+                            };
+
+                            updateThread(
+                                thread.threadId,
+                                newGeminiMessage
+                            ).then((resultSet) => {
+                                if (resultSet.success) {
+                                    setThread(newThread);
+                                } else {
+                                    // TODO: system message warning.
+                                    console.error(resultSet.message);
+                                }
+                            });
+
+                            // TODO: Improve keeping the context for the next response, previous few messages should be the most pertinent.
+
+                            await updateConversationSummary(
+                                thread.threadId,
+                                currentSummary,
+                                aiResponse.data
+                            );
+                        } else {
+                            const newGeminiMessage: Message = {
+                                role: "ai-error",
+                                content: aiResponse.data,
+                                id: nanoid(),
+                                createdAt: new Date().toISOString(),
+                                threadId: thread.threadId
+                            };
+
+                            const newThread = {
+                                ...updatedThread,
+                                messages: [
+                                    ...updatedThread.messages,
+                                    newGeminiMessage
+                                ]
+                            };
+
+                            updateThread(
+                                thread.threadId,
+                                newGeminiMessage
+                            ).then((resultSet) => {
+                                if (resultSet.success) {
+                                    setThread(newThread);
+                                } else {
+                                    // TODO: System message.
+                                    console.error(resultSet.message);
+                                }
+                            });
+                        }
+                    } catch (error) {
+                        console.error(
+                            "ERROR when handling context option: ",
+                            error
+                        );
+                    } finally {
+                        setTypewriter(false);
+                    }
+                } else {
+                    console.log(res);
+                }
             }
         };
 
@@ -179,6 +302,14 @@ const Chat = ({
             chrome.runtime.onMessage.removeListener(handleMessage);
         };
     }, []);
+
+    const playAudio = () => {
+        if (audioBlob) {
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+            audio.play();
+        }
+    };
 
     const handleContextOption = async ({
         title,
@@ -348,6 +479,58 @@ const Chat = ({
         }
     };
 
+    // TODO: can't do this... need to translate first from OpenAI I guess.
+
+    async function prepareGeminiRequest(audioBlob: Blob) {
+        // Convert the Blob into a base64 encoded string
+        // const base64Audio = await blobToBase64(audioBlob);
+
+        const file = new File([audioBlob], "audio.mpeg", {
+            type: "audio/mpeg"
+        });
+
+        // const base64String = base64Audio.split(",")[1];
+
+        // Construct the request body
+        const requestBody = {
+            prompt: "Please translate the following audio",
+
+            filePart: {
+                fileData: {
+                    fileUri: file,
+                    mimeType: audioBlob.type // MIME type of the audio
+                }
+            }
+        };
+
+        return requestBody;
+    }
+
+    const fetchTextDataFromTextAndAudio = async (
+        prompt: string,
+        filePart: FileDataPart
+    ) => {
+        setResponseLoading(true);
+
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        // TODO: need a better way to throw 'limited'... add toast component.
+        try {
+            return await rateLimiter.call(async () => {
+                const result = await model.generateContent([prompt, filePart]);
+                const response = await result.response;
+                const text = response.text();
+
+                return { success: true, data: text };
+            });
+        } catch (err) {
+            console.error(err.message);
+            return { success: false, data: err.message };
+        } finally {
+            setResponseLoading(false);
+        }
+    };
+
     const fetchTextDataFromTextAndImage = async (
         prompt: string,
         imagePart: Part
@@ -380,7 +563,7 @@ const Chat = ({
         try {
             let fullPrompt: string = "";
             if (summary) {
-                fullPrompt = `Here is the summary of our conversation so far: ${summary}\n\nNow, please respond to the following message:\n${prompt}`;
+                fullPrompt = `Here is the summary of our conversation so far: ${summary}\n\nPlease consider the last message attached to the summary most pertinent. Now, please respond to the following message:\n${prompt}`;
             } else {
                 fullPrompt = prompt;
             }
@@ -685,6 +868,7 @@ const Chat = ({
 
     return (
         <div className="flex flex-col mt-auto">
+            {/* {audioBlob && <button onClick={playAudio}>Play audio</button>} */}
             <Carousel className="px-4 w-full mb-4 group relative">
                 <div className="w-full justify-center translate-y-2 z-10 relative space-x-4">
                     <CarouselPrevious />
