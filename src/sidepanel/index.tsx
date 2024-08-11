@@ -266,9 +266,8 @@ const Sidepanel = () => {
 
     // TODO: add skeleton
 
-    if (currentChatThread === null) {
-        // TODO: Add loading skeleton or spinner.
-        return <p>Loading...</p>;
+    if (!currentChatThread) {
+        return <div>loading...</div>;
     }
 
     return (

@@ -611,6 +611,7 @@ export const PreferencesForm = ({
                                             </div>
                                             <FormControl>
                                                 <Input
+                                                    type="password"
                                                     placeholder="vw0Zo..."
                                                     {...field}
                                                 />
@@ -663,6 +664,7 @@ export const PreferencesForm = ({
                                             </div>
                                             <FormControl>
                                                 <Input
+                                                    type="password"
                                                     placeholder="vw0Zo..."
                                                     {...field}
                                                 />

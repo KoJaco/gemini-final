@@ -175,7 +175,11 @@ export function ApiEntryForm({
                         <FormItem>
                             <FormLabel>Gemini API Key</FormLabel>
                             <FormControl>
-                                <Input placeholder="vw0Zo..." {...field} />
+                                <Input
+                                    type="password"
+                                    placeholder="vw0Zo..."
+                                    {...field}
+                                />
                             </FormControl>
                             <FormDescription className="text-muted-foreground">
                                 To use this extension you must first sign up for
@@ -213,7 +217,8 @@ export function ApiEntryForm({
                             </FormLabel>
                             <FormControl>
                                 <Input
-                                    placeholder="sk-proj-VEc..."
+                                    type="password"
+                                    placeholder="sk-proj-Aek..."
                                     {...field}
                                 />
                             </FormControl>
