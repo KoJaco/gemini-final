@@ -35,7 +35,7 @@ To run this project locally, ensure you have the following installed on your mac
 
 3. **Setup environment Variables:**
 
-    - Copy over the .env.example file and set your own password. This will be used to save and retrieve your api keys from Chrome sync storage. 
+    - Create a .env.development file, copy over the .env.example content, and then set your own password. This will be used to save and retrieve your api keys from Chrome sync storage. 
 
 4. **Run the Dev server:**
 
