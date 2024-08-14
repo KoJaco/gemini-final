@@ -33,7 +33,11 @@ To run this project locally, ensure you have the following installed on your mac
     pnpm install
     ```
 
-3. **Run the Dev server:**
+3. **Setup environment Variables:**
+
+    - Copy over the .env.example file and set your own password. This will be used to save and retrieve your api keys from Chrome sync storage. 
+
+4. **Run the Dev server:**
 
     ```bash
     pnpm dev
@@ -41,7 +45,7 @@ To run this project locally, ensure you have the following installed on your mac
     npm run dev
     ```
 
-4. **Load package:**
+5. **Load package:**
 
     - Open your browser and navigate to `chrome://extensions/`.
     - Enable developer mode by toggling the switch in the top right corner.
