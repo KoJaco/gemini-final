@@ -57,7 +57,7 @@ export function ChatMessage({
     // global state
     const { whisperApiKey } = useAppStore();
 
-    // local State
+    // local Statdsi
     const [displayedText, setDisplayedText] = useState("");
     const [currentIndex, setCurrentIndex] = useState(0);
     const [audioPlayerTopPosition, setAudioPlayerTopPosition] = useState(0);
