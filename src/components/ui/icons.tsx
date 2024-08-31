@@ -3,6 +3,8 @@
 import { cn } from "@/lib/utils";
 import * as React from "react";
 
+type IconProps = React.HTMLAttributes<SVGElement>;
+
 export function PauseIcon(props: React.ComponentPropsWithoutRef<"svg">) {
     return (
         <svg viewBox="0 0 36 36" aria-hidden="true" {...props}>
@@ -470,14 +472,15 @@ function IconChevronUpDown({
     );
 }
 
-export const GoogleIcon = () => {
+export const GoogleIcon = (props: IconProps) => {
     return (
         <svg
             height="14"
             strokeLinejoin="round"
             viewBox="0 0 16 16"
             width="14"
-            style={{ color: "currentcolor" }}>
+            style={{ color: "currentcolor" }}
+            {...props}>
             <path
                 d="M8.15991 6.54543V9.64362H12.4654C12.2763 10.64 11.709 11.4837 10.8581 12.0509L13.4544 14.0655C14.9671 12.6692 15.8399 10.6182 15.8399 8.18188C15.8399 7.61461 15.789 7.06911 15.6944 6.54552L8.15991 6.54543Z"
                 fill="#4285F4"></path>
@@ -704,6 +707,17 @@ export const GooglePayIcon = () => {
         </svg>
     );
 };
+
+// export const GoogleIcon = (props: IconProps) => {
+//     return (
+// <svg role="img" viewBox="0 0 24 24" {...props}>
+//       <path
+//         fill="currentColor"
+//         d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"
+//       />
+//     </svg>
+//     );
+// };
 
 export {
     IconEdit,

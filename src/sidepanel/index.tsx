@@ -1,6 +1,9 @@
 import "@/style.css";
 
 import { ApiEntryForm } from "@/components/forms/api-entry-form";
+import FirebaseAuthForm from "@/components/forms/firebase-auth-form";
+import { LoginForm } from "@/components/forms/login-form";
+import { SignUpFlow } from "@/components/forms/sign-up-form";
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -21,7 +24,12 @@ import {
     savePreferences
 } from "@/lib/storage/secure";
 import { useAppStore } from "@/lib/stores/appStore";
-import type { AvailableViews, ChatThread, Message } from "@/lib/types";
+import type {
+    AvailableInitialViews,
+    AvailableViews,
+    ChatThread,
+    Message
+} from "@/lib/types";
 import { CircleHelp, Mic } from "lucide-react";
 import { nanoid } from "nanoid";
 import React, { useEffect, useState } from "react";
@@ -35,10 +43,11 @@ const Sidepanel = () => {
     const [currentChatThread, setCurrentChatThread] =
         useState<ChatThread | null>(null);
     const [currentView, setCurrentView] = useState<AvailableViews>("main");
-
-    const [loading, setLoading] = useState(true);
+    const [initialView, setInitialView] =
+        useState<AvailableInitialViews>("login");
     const [apiKeysLoading, setApiKeysLoading] = useState(false);
     const [error, setError] = useState({ display: false, message: "" });
+    const [loading, setLoading] = useState(true);
 
     const {
         messagesRef,
@@ -254,14 +263,34 @@ const Sidepanel = () => {
         }
     }
 
+    function renderInitialView() {
+        switch (initialView) {
+            case "login":
+                return <LoginForm setInitialView={setInitialView} />;
+            case "signup":
+                return <SignUpFlow setInitialView={setInitialView} />;
+            case "api-keys":
+                return (
+                    <ApiEntryForm
+                        setGeminiKey={setGeminiApiKey}
+                        setWhisperApiKey={setWhisperAPIKey}
+                        setApiKeysLoading={setApiKeysLoading}
+                        setError={setError}
+                        setInitialView={setInitialView}
+                    />
+                );
+
+            default:
+                return <LoginForm setInitialView={setInitialView} />;
+        }
+    }
+
     const openWelcomePage = () => {
         const tabUrl = chrome.runtime.getURL("tabs/welcome.html");
         chrome.tabs.create({ url: tabUrl });
     };
 
-    // TODO: add skeleton
-
-    if (!currentChatThread) {
+    if (geminiApiKey && !currentChatThread) {
         return (
             <div className="flex flex-col w-full h-[100vh] max-h-[100vh] pt-4 overflow-x-hidden bg-gradient-to-b from-background to-background/50">
                 <p>
@@ -274,7 +303,7 @@ const Sidepanel = () => {
 
     return (
         <Providers>
-            <div className="flex flex-col w-full h-[100vh] max-h-[100vh] pt-4 overflow-x-hidden bg-gradient-to-b from-background to-background/50">
+            <div className="flex flex-col w-full h-[100vh] max-h-[100vh] py-4 overflow-x-hidden bg-gradient-to-b from-background to-background/50">
                 {geminiApiKey ? (
                     <div className="flex flex-col h-full w-full relative">
                         <header className="px-4 mb-4 items-center justify-between flex">
@@ -369,38 +398,9 @@ const Sidepanel = () => {
                                 </div>
                             </div>
                         ) : (
-                            <Card className="shadow-lg w-full h-auto">
-                                <CardHeader className="mb-4">
-                                    <CardTitle className="capitalize text-2xl font-bold mb-4">
-                                        Setup you API keys
-                                    </CardTitle>
-
-                                    <CardDescription>
-                                        <span className="mb-4">
-                                            This step is only required while the
-                                            application is in development.
-                                            Please see the timeline in the app's
-                                            welcome page to get an idea of the
-                                            improvements and features that are
-                                            on the way.
-                                        </span>
-                                        {error.display && (
-                                            <span className="text-red-500 mb-4 whitespace-normal w-full">
-                                                {error.message}
-                                            </span>
-                                        )}
-                                    </CardDescription>
-                                </CardHeader>
-
-                                <CardContent>
-                                    <ApiEntryForm
-                                        setGeminiKey={setGeminiApiKey}
-                                        setWhisperApiKey={setWhisperAPIKey}
-                                        setApiKeysLoading={setApiKeysLoading}
-                                        setError={setError}
-                                    />
-                                </CardContent>
-                            </Card>
+                            <div className="space-y-8">
+                                {renderInitialView()}
+                            </div>
                         )}
                     </div>
                 )}

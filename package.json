@@ -26,10 +26,13 @@
         "@radix-ui/react-slot": "^1.1.0",
         "@radix-ui/react-switch": "^1.1.0",
         "@radix-ui/react-tooltip": "^1.1.2",
+        "@stripe/react-stripe-js": "^2.8.0",
+        "@stripe/stripe-js": "^4.4.0",
         "axios": "^1.7.2",
         "class-variance-authority": "^0.7.0",
         "clsx": "^2.1.1",
         "embla-carousel-react": "^8.1.7",
+        "firebase": "^10.13.1",
         "hook": "link:@plasmohq/storage/hook",
         "lucide-react": "^0.416.0",
         "markdown-to-jsx": "^7.4.7",
@@ -70,7 +73,11 @@
     },
     "manifest": {
         "host_permissions": [
-            "https://*/*"
+            "https://*/*",
+            "http://localhost/*",
+            "https://your-firebase-project-id.firebaseapp.com/*",
+            "https://api.stripe.com/*",
+            "https://js.stripe.com/v3"
         ],
         "permissions": [
             "activeTab",

@@ -155,6 +155,8 @@ export type AvailableViews =
     | "preferences"
     | "read-mode";
 
+export type AvailableInitialViews = "login" | "signup" | "api-keys";
+
 export type ResultObject = {
     success: boolean;
     data?: any;

@@ -13,11 +13,20 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { storeGeminiApiKey, storeWhisperApiKey } from "@/lib/storage/secure";
+import type { AvailableInitialViews } from "@/lib/types";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { zodResolver } from "@hookform/resolvers/zod";
 import clsx from "clsx";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle
+} from "../ui/card";
 
 type Props = {
     setGeminiKey: (value: string) => void;
@@ -30,6 +39,7 @@ type Props = {
         display: boolean;
         message: string;
     }) => void;
+    setInitialView: (value: AvailableInitialViews) => void;
 };
 
 const formSchema = z.object({
@@ -49,7 +59,8 @@ export function ApiEntryForm({
     setGeminiKey,
     setWhisperApiKey,
     setApiKeysLoading,
-    setError
+    setError,
+    setInitialView
 }: Props) {
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -164,98 +175,133 @@ export function ApiEntryForm({
     }
 
     return (
-        <Form {...form}>
-            <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-8 bg-background">
-                <FormField
-                    control={form.control}
-                    name="geminiApiKey"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Gemini API Key</FormLabel>
-                            <FormControl>
-                                <Input
-                                    type="password"
-                                    placeholder="vw0Zo..."
-                                    {...field}
-                                />
-                            </FormControl>
-                            <FormDescription className="text-muted-foreground">
-                                To use this extension you must first sign up for
-                                a Google Gemini API Key. You can{" "}
-                                <a
-                                    href="https://ai.google.dev/gemini-api/docs/api-key"
-                                    target="_blank"
-                                    className={clsx(
-                                        {
-                                            buttonVariants: {
-                                                variant: "inline"
-                                            }
-                                        },
-                                        "underline font-bold"
-                                    )}>
-                                    follow this link
-                                </a>{" "}
-                                to learn how.
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+        <Card className="shadow-lg w-full h-auto">
+            <CardHeader className="mb-4">
+                <CardTitle className="capitalize text-2xl font-bold mb-4">
+                    Use your own API Keys
+                </CardTitle>
 
-                <FormField
-                    control={form.control}
-                    name="whisperApiKey"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>
-                                Whisper API Key{" "}
-                                <span className="ml-auto text-muted-foreground/50">
-                                    (optional)
-                                </span>
-                            </FormLabel>
-                            <FormControl>
-                                <Input
-                                    type="password"
-                                    placeholder="sk-proj-Aek..."
-                                    {...field}
-                                />
-                            </FormControl>
-                            <FormDescription className="text-muted-foreground leading-1">
-                                OpenAI's Whisper API provides quality speech
-                                synthesis across many languages. This is an
-                                external API you will need to setup yourself,
-                                however, detailed instructions can be found by{" "}
-                                <a
-                                    href="https://platform.openai.com/api-keys"
-                                    target="_blank"
-                                    className={clsx(
-                                        {
-                                            buttonVariants: {
-                                                variant: "inline"
-                                            }
-                                        },
-                                        "underline font-bold"
-                                    )}>
-                                    following this link.
-                                </a>{" "}
-                                The voice you will hear when using this API is
-                                AI-generated and not a human voice.
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <Button type="submit" className="w-full">
-                    Submit
-                </Button>
-                {/* <WebTts
-          text={
-            "By default this extension uses the native browser Web Speech API for reading out Gemini's messages. Check this text box if you would like better text-to-speech functionality by using the OpenAI Whisper API."
-          }
-        /> */}
-            </form>
-        </Form>
+                <CardDescription>
+                    <span className="mb-4">
+                        This options is for those who do not want to sign up for
+                        Companion or for those who already have their own API
+                        keys and want to manage their subscriptions themselves.
+                    </span>
+                    {/* {error.display && (
+                        <span className="text-red-500 mb-4 whitespace-normal w-full">
+                            {error.message}
+                        </span>
+                    )} */}
+                </CardDescription>
+            </CardHeader>
+
+            <CardContent>
+                <Form {...form}>
+                    <form
+                        onSubmit={form.handleSubmit(onSubmit)}
+                        className="space-y-8 bg-background">
+                        <FormField
+                            control={form.control}
+                            name="geminiApiKey"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Gemini API Key</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            type="password"
+                                            placeholder="vw0Zo..."
+                                            {...field}
+                                        />
+                                    </FormControl>
+                                    <FormDescription className="text-muted-foreground">
+                                        To use this extension you must first
+                                        sign up for a Google Gemini API Key. You
+                                        can{" "}
+                                        <a
+                                            href="https://ai.google.dev/gemini-api/docs/api-key"
+                                            target="_blank"
+                                            className={clsx(
+                                                {
+                                                    buttonVariants: {
+                                                        variant: "inline"
+                                                    }
+                                                },
+                                                "underline font-bold"
+                                            )}>
+                                            follow this link
+                                        </a>{" "}
+                                        to learn how.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="whisperApiKey"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>
+                                        Whisper API Key{" "}
+                                        <span className="ml-auto text-muted-foreground/50">
+                                            (optional)
+                                        </span>
+                                    </FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            type="password"
+                                            placeholder="sk-proj-Aek..."
+                                            {...field}
+                                        />
+                                    </FormControl>
+                                    <FormDescription className="text-muted-foreground leading-1">
+                                        OpenAI's Whisper API provides quality
+                                        speech synthesis across many languages.
+                                        This is an external API you will need to
+                                        setup yourself, however, detailed
+                                        instructions can be found by{" "}
+                                        <a
+                                            href="https://platform.openai.com/api-keys"
+                                            target="_blank"
+                                            className={clsx(
+                                                {
+                                                    buttonVariants: {
+                                                        variant: "inline"
+                                                    }
+                                                },
+                                                "underline font-bold"
+                                            )}>
+                                            following this link.
+                                        </a>{" "}
+                                        The voice you will hear when using this
+                                        API is AI-generated and not a human
+                                        voice.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <Button type="submit" className="w-full">
+                            Submit
+                        </Button>
+
+                        <div className="mt-4 space-y-2">
+                            <p className="text-sm font-light text-muted-foreground">
+                                Already have an account?{" "}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setInitialView("login");
+                                    }}
+                                    className="text-primary font-semibold hover:underline ml-2">
+                                    Login
+                                </button>
+                            </p>
+                        </div>
+                    </form>
+                </Form>
+            </CardContent>
+        </Card>
     );
 }
