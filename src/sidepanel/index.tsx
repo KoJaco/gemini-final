@@ -4,6 +4,7 @@ import { ApiEntryForm } from "@/components/forms/api-entry-form";
 import FirebaseAuthForm from "@/components/forms/firebase-auth-form";
 import { LoginForm } from "@/components/forms/login-form";
 import { SignUpFlow } from "@/components/forms/sign-up-form";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -308,7 +309,8 @@ const Sidepanel = () => {
                     <div className="flex flex-col h-full w-full relative">
                         <header className="px-4 mb-4 items-center justify-between flex">
                             <h1 className="text-lg text-left">Companion</h1>
-                            <div>
+                            <div className="space-x-2">
+                                <ThemeToggle />
                                 <Button
                                     size="icon"
                                     title="Open Welcome Page"

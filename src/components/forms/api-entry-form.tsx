@@ -244,7 +244,7 @@ export function ApiEntryForm({
                                 <FormItem>
                                     <FormLabel>
                                         Whisper API Key{" "}
-                                        <span className="ml-auto text-muted-foreground/50">
+                                        <span className="ml-auto text-muted-foreground/75">
                                             (optional)
                                         </span>
                                     </FormLabel>

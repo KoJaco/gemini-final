@@ -642,7 +642,7 @@ export const PreferencesForm = ({
                                             <div className="flex w-full items-center justify-between">
                                                 <FormLabel>
                                                     Whisper API Key{" "}
-                                                    <span className="text-muted">
+                                                    <span className="text-muted-foreground/75">
                                                         (optional)
                                                     </span>
                                                 </FormLabel>
