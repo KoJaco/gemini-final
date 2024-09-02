@@ -39,11 +39,11 @@ export function ForwardButton({
             type="button"
             size="icon"
             variant="ghost"
-            className="group relative rounded-full focus:outline-none"
+            className="relative rounded-full focus:outline-none"
             onClick={() => player.seekBy(amount)}
             aria-label={`Fast-forward ${amount} seconds`}>
             {/* <div className="absolute -inset-4 -right-2 md:hidden" /> */}
-            <ForwardIcon className="h-6 w-6 stroke-muted-foreground group-hover:stroke-primary" />
+            <ForwardIcon className="h-6 w-6 stroke-primary/75 hover:stroke-primary" />
         </Button>
     );
 }

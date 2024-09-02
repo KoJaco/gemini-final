@@ -304,7 +304,7 @@ const Sidepanel = () => {
 
     return (
         <Providers>
-            <div className="flex flex-col w-full h-[100vh] max-h-[100vh] py-4 overflow-x-hidden bg-gradient-to-b from-background to-background/50">
+            <div className="flex flex-col w-full h-[100vh] max-h-[100vh] pt-4 overflow-x-hidden bg-gradient-to-b from-background to-background/50">
                 {geminiApiKey ? (
                     <div className="flex flex-col h-full w-full relative">
                         <header className="px-4 mb-4 items-center justify-between flex">

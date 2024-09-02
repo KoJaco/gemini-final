@@ -1,4 +1,5 @@
-import { type Audio } from "@/lib/types";
+import { type Audio, type Transcript } from "@/lib/types";
+import { ConstructionIcon } from "lucide-react";
 import React, {
     createContext,
     useCallback,
@@ -6,7 +7,8 @@ import React, {
     useEffect,
     useMemo,
     useReducer,
-    useRef
+    useRef,
+    useState
 } from "react";
 
 interface PlayerState {
@@ -74,11 +76,27 @@ function audioReducer(state: PlayerState, action: Action): PlayerState {
     }
 }
 
+const leeway = 0.05;
+
+interface WordPosition {
+    word: string;
+    start: number;
+    end: number;
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+}
 export function AudioProvider({
     children,
-    onTimeUpdate
+    transcript,
+    renderedText,
+    messageId
 }: {
     children: React.ReactNode;
+    transcript: Partial<Transcript> | null;
+    renderedText: string | null;
+    messageId: string;
     onTimeUpdate?: (currentTime: number) => void;
 }) {
     const [state, dispatch] = useReducer(audioReducer, {
@@ -91,40 +109,192 @@ export function AudioProvider({
     });
     const playerRef = useRef<React.ElementRef<"audio">>(null);
     const currentTimeRef = useRef(0); // Store the current time in a ref
+    const animationFrameIdRef = useRef<number | null>(null);
+    const activeWordIndex = useRef<number | null>(null);
 
-    // const updateTime = useCallback(() => {
-    //     if (playerRef.current) {
-    //         const exactCurrentTime = playerRef.current.currentTime;
+    const [wordPositions, setWordPositions] = useState<WordPosition[]>([]);
 
-    //         dispatch({
-    //             type: ActionKind.SET_CURRENT_TIME,
-    //             payload: exactCurrentTime
-    //         });
+    const calculateWordPositions = (
+        transcript: Partial<Transcript>,
+        containerId: string
+    ): WordPosition[] => {
+        const container = document.getElementById(containerId);
+        const wordPositions: WordPosition[] = [];
 
-    //         if (onTimeUpdate) {
-    //             onTimeUpdate(exactCurrentTime);
-    //         }
-    //     }
-    // }, [onTimeUpdate]);
+        if (!container) {
+            console.error(`Container with id ${containerId} not found`);
+            return wordPositions;
+        }
+
+        let currentCharIdx = 0; // Keep track of the cumulative character index
+        let foundStart = false;
+
+        // Iterate over each word in the transcript
+        transcript.words?.forEach((transcriptWord) => {
+            const range = document.createRange();
+            let startNode: Node | null = null;
+            let startOffset = 0;
+            let endNode: Node | null = null;
+            let endOffset = 0;
+
+            function traverseNodes(node: ChildNode) {
+                if (foundStart && endNode) return; // Stop if we've found the word
+
+                if (node.nodeType === Node.TEXT_NODE) {
+                    const textContent = node.textContent || "";
+                    const nodeEndIndex = currentCharIdx + textContent.length;
+
+                    if (
+                        !foundStart &&
+                        currentCharIdx <= transcriptWord.start! &&
+                        transcriptWord.start! < nodeEndIndex
+                    ) {
+                        startNode = node;
+                        startOffset = transcriptWord.start! - currentCharIdx;
+                        foundStart = true;
+                    }
+
+                    if (
+                        foundStart &&
+                        !endNode &&
+                        transcriptWord.end! <= nodeEndIndex
+                    ) {
+                        endNode = node;
+                        endOffset = transcriptWord.end! - currentCharIdx;
+                    }
+
+                    currentCharIdx = nodeEndIndex;
+                } else {
+                    node.childNodes.forEach(traverseNodes);
+                }
+            }
+
+            container.childNodes.forEach(traverseNodes);
+
+            if (startNode && endNode) {
+                range.setStart(startNode, startOffset);
+                range.setEnd(endNode, endOffset);
+                const rect = range.getBoundingClientRect();
+
+                wordPositions.push({
+                    word: transcriptWord.word,
+                    start: transcriptWord.start!,
+                    end: transcriptWord.end!,
+                    top: rect.top,
+                    left: rect.left,
+                    width: rect.width,
+                    height: rect.height
+                });
+            }
+
+            // Reset for the next word
+            foundStart = false;
+        });
+
+        return wordPositions;
+    };
 
     useEffect(() => {
-        const onTimeUpdate = () => {
-            if (playerRef.current) {
-                currentTimeRef.current = playerRef.current.currentTime;
-            }
-        };
+        if (transcript && transcript.words) {
+            const wordPositions = calculateWordPositions(
+                transcript,
+                `text-content-${messageId}`
+            );
 
-        const audioElement = playerRef.current;
-        if (audioElement) {
-            audioElement.addEventListener("timeupdate", onTimeUpdate);
+            console.log(wordPositions);
+            setWordPositions(wordPositions);
+        }
+    }, []);
+
+    const highlightWord = (wordPosition) => {
+        const highlightOverlay = document.getElementById("highlight-overlay");
+        highlightOverlay.style.top = `${wordPosition.top}px`;
+        highlightOverlay.style.left = `${wordPosition.left}px`;
+        highlightOverlay.style.width = `${wordPosition.width}px`;
+        highlightOverlay.style.height = `${wordPosition.height}px`;
+        highlightOverlay.style.display = "block";
+    };
+
+    const updateHighlight = useCallback(() => {
+        if (playerRef.current) {
+            const currentTime = playerRef.current.currentTime;
+            currentTimeRef.current = currentTime;
+
+            if (wordPositions.length > 0) {
+                const wordPosition = wordPositions.find(
+                    (word) =>
+                        currentTime >= word.start && currentTime < word.end
+                );
+
+                if (wordPosition) {
+                    highlightWord(wordPosition);
+                }
+
+                // highlightWordBasedOnTime(currentTime);
+
+                animationFrameIdRef.current =
+                    requestAnimationFrame(updateHighlight);
+            }
+        }
+    }, []);
+
+    const highlightWordBasedOnTime = (currentTime) => {
+        if (
+            !activeWordIndex.current &&
+            !transcript.words &&
+            activeWordIndex.current === transcript.words.length - 1
+        )
+            return;
+
+        const nextWord = transcript.words[activeWordIndex.current + 1];
+
+        if (currentTime > nextWord.start) {
+            console.log(
+                currentTime + " | " + nextWord.word + " | " + calculateRange()
+            );
+
+            const start = calculateRange();
+            const end = start + nextWord.word.length;
+
+            // highlightText(start, end);
+            console.log("Start Index: " + start + "\n\n" + "End Index: " + end);
+
+            activeWordIndex.current = activeWordIndex.current + 1;
+        }
+    };
+
+    function calculateRange() {
+        let cumulativeRange = 0;
+
+        for (let i = 0; i < activeWordIndex.current; i++) {
+            cumulativeRange += transcript.words[i].word.length;
+        }
+
+        return cumulativeRange;
+    }
+
+    useEffect(() => {
+        if (!transcript?.words || !messageId) return;
+
+        if (!activeWordIndex.current) activeWordIndex.current = 0;
+
+        if (state.playing) {
+            // Start the animation frame loop when audio is playing
+            animationFrameIdRef.current =
+                requestAnimationFrame(updateHighlight);
+        } else if (animationFrameIdRef.current) {
+            // Stop the loop when audio is paused
+            cancelAnimationFrame(animationFrameIdRef.current);
+            animationFrameIdRef.current = null;
+            activeWordIndex.current = null;
         }
 
         return () => {
-            if (audioElement) {
-                audioElement.removeEventListener("timeupdate", onTimeUpdate);
+            if (animationFrameIdRef.current) {
+                cancelAnimationFrame(animationFrameIdRef.current);
             }
         };
-    }, []);
+    }, [state.playing, updateHighlight]);
 
     const actions = useMemo<PublicPlayerActions>(() => {
         return {

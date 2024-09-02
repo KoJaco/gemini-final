@@ -45,12 +45,12 @@ export function MuteButton({ player }: { player: PlayerAPI }) {
             type="button"
             size="icon"
             variant="ghost"
-            className="group/mute relative rounded-md focus:outline-none focus:ring-2 focus:ring-muted-foreground focus:ring-offset-2"
+            className="relative rounded-md focus:outline-none focus:ring-2 focus:ring-muted-foreground focus:ring-offset-2"
             onClick={() => player.toggleMute()}
             aria-label={player.muted ? "Unmute" : "Mute"}>
             <MuteIcon
                 muted={player.muted}
-                className="h-6 w-6 stroke-muted-foreground group-hover:stroke-primary"
+                className="h-6 w-6 stroke-primary/75 hover:stroke-primary"
             />
         </Button>
     );

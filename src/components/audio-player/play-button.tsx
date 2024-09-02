@@ -12,9 +12,9 @@ export function PlayButton({ player }: { player: PlayerAPI }) {
             variant="ghost"
             type="button"
             onClick={() => player.toggle()}
-            aria-label={player.playing ? "Pause" : "Play"}>
-            <div className="absolute -inset-3 md:hidden" />
-            <Icon className="h-4 w-4 fill-white group-active:fill-white md:h-7 md:w-7" />
+            aria-label={player.playing ? "Pause" : "Play"}
+            className="focus:outline-none focus:ring-2 focus:ring-muted-foreground focus:ring-offset-2">
+            <Icon className="h-4 w-4 fill-primary group-active:fill-white md:h-7 md:w-7 " />
         </Button>
     );
 }

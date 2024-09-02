@@ -41,8 +41,6 @@ import { Button } from "../ui/button";
 import { IconGemini, IconUser } from "../ui/icons";
 import WebTTS from "../web-tts";
 
-// TODO: functionality change... should I have the audio player hover on the side or be underneath/above the component?
-
 export interface ChatMessageProps {
     message: Message;
     speed?: number;
@@ -55,33 +53,31 @@ export function ChatMessage({
     ...props
 }: ChatMessageProps) {
     // global state
-    const { whisperApiKey } = useAppStore();
+    const { whisperApiKey, typewriter, setTypewriter, preferencesState } =
+        useAppStore();
 
-    // local Statdsi
+    // is this all we need?
+    const { useWebSpeech } = preferencesState.applicationSettings;
+
+    // message text tracking
     const [displayedText, setDisplayedText] = useState("");
     const [currentIndex, setCurrentIndex] = useState(0);
-    const [audioPlayerTopPosition, setAudioPlayerTopPosition] = useState(0);
-    const [isHovered, setIsHovered] = useState(false);
-    const [displayAudio, setDisplayAudio] = useState(false);
-    const [audioIsInProgress, setAudioIsInProgress] = useState(false);
-    const [showAudioPlayer, setShowAudioPlayer] = useState(false);
+
+    // temp var
     const [toggleTranscript, setToggleTranscript] = useState(false);
 
-    const [messageAudioLoading, setMessageAudioLoading] = useState(false);
-    // TODO: add another state for transcription loading?
-
+    // audio
+    const [audioPlayerTopPosition, setAudioPlayerTopPosition] = useState(0);
+    const [audioIsInProgress, setAudioIsInProgress] = useState(false);
+    const [showAudioPlayer, setShowAudioPlayer] = useState(false);
     const [currentAudio, setCurrentAudio] = useState<AudioData | null>(null);
 
-    const { currentTime } = useAudioPlayer();
+    // loading state
+    const [messageAudioLoading, setMessageAudioLoading] = useState(false);
 
     // refs
-
     const messageContainerRef = useRef<HTMLDivElement | null>(null);
     const ttsRef = useRef<HTMLDivElement | null>(null);
-
-    const { typewriter, setTypewriter, preferencesState } = useAppStore();
-
-    const { useWebSpeech } = preferencesState.applicationSettings;
 
     useEffect(() => {
         if (typewriter) {
@@ -108,8 +104,6 @@ export function ChatMessage({
             setDisplayedText(message.content);
         }
     }, [currentIndex, speed, message]);
-
-    // TODO: make this a hook...
 
     function debounce(func: Function, wait: number) {
         let timeout: NodeJS.Timeout;
@@ -224,29 +218,24 @@ export function ChatMessage({
         }
     };
 
-    const handleMouseLeave = () => {
-        if (audioIsInProgress) {
-            return;
-        } else {
-            setDisplayAudio(false);
-        }
-    };
-
     if (typeof displayedText !== "string") {
         console.error("displayedText is not a string: ", displayedText);
         return null;
     }
 
     return (
-        <AudioProvider>
+        <AudioProvider
+            transcript={currentAudio?.transcript || null}
+            renderedText={displayedText || null}
+            messageId={message.id}>
             <div
                 id={`message-container-${message.id}`}
                 ref={messageContainerRef}
                 className={cn(
                     "group w-full mb-10 items-start h-auto relative flex flex-col overflow-x-hidden transition-all duration-300 max-w-full"
                 )}
-                onMouseEnter={() => setDisplayAudio(true)}
-                onMouseLeave={handleMouseLeave}
+                // onMouseEnter={() => setDisplayAudio(true)}
+                // onMouseLeave={handleMouseLeave}
                 onMouseMove={debouncedMouseMove}
                 style={{ overflow: "visible" }}
                 {...props}>
@@ -270,40 +259,42 @@ export function ChatMessage({
                     </div>
 
                     {currentAudio && !useWebSpeech && (
-                        <Button
-                            size="icon"
-                            variant="ghost"
-                            title="Activate Highlight Mode"
-                            onClick={() =>
-                                setToggleTranscript(!toggleTranscript)
-                            }
-                            className={clsx(
-                                "mb-2 px-2 hover:scale-105",
-                                toggleTranscript ? "bg-secondary" : ""
-                            )}>
-                            <Highlighter className="w-4 h-4" />
-                        </Button>
-                    )}
-
-                    {currentAudio && !useWebSpeech && (
-                        <MainPlayButton
-                            audioBlob={currentAudio.audioBlob}
-                            setShowAudioPlayer={setShowAudioPlayer}
-                            title="Start Audio Player"
-                            className="mr-auto flex-start mb-2 rounded-full px-3 hover:scale-105"
-                            playing={
-                                <>
-                                    <Pause className="h-3 w-3 fill-current" />
-                                    {/* <span aria-hidden="true">Listen</span> */}
-                                </>
-                            }
-                            paused={
-                                <>
-                                    <Play className="h-3 w-3 fill-current" />
-                                    {/* <span aria-hidden="true">Listen</span> */}
-                                </>
-                            }
-                        />
+                        <>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                title="Activate Highlight Mode"
+                                onClick={() =>
+                                    // setDisplayedText(
+                                    //     preprocessMarkdown(displayedText)
+                                    // )
+                                    setToggleTranscript(!toggleTranscript)
+                                }
+                                className={clsx(
+                                    "mb-2 px-2 hover:scale-105",
+                                    toggleTranscript ? "bg-secondary" : ""
+                                )}>
+                                <Highlighter className="w-4 h-4" />
+                            </Button>
+                            <MainPlayButton
+                                audioBlob={currentAudio.audioBlob}
+                                setShowAudioPlayer={setShowAudioPlayer}
+                                title="Start Audio Player"
+                                className="mr-auto flex-start mb-2 rounded-full px-3 hover:scale-105"
+                                playing={
+                                    <>
+                                        <Pause className="h-3 w-3 fill-current" />
+                                        {/* <span aria-hidden="true">Listen</span> */}
+                                    </>
+                                }
+                                paused={
+                                    <>
+                                        <Play className="h-3 w-3 fill-current" />
+                                        {/* <span aria-hidden="true">Listen</span> */}
+                                    </>
+                                }
+                            />
+                        </>
                     )}
 
                     {!useWebSpeech && (
@@ -317,6 +308,25 @@ export function ChatMessage({
                                 handleConvertMessageToWhisper(displayedText);
                             }}>
                             <AudioLines className="w-4 h-4" />
+                        </Button>
+                    )}
+
+                    {useWebSpeech && (
+                        <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="transition-transform hover:scale-105 duration-300 mb-2 px-2"
+                            onClick={() => {
+                                if (audioIsInProgress) {
+                                    setAudioIsInProgress(false);
+                                    setShowAudioPlayer(false);
+                                } else {
+                                    setShowAudioPlayer(true);
+                                    setAudioIsInProgress(true);
+                                }
+                            }}>
+                            <Play className="h-3 w-3 fill-current" />
                         </Button>
                     )}
                 </div>
@@ -367,15 +377,24 @@ export function ChatMessage({
                             }>
                             <div
                                 id={`text-content-${message.id}`}
-                                className="h-full w-full prose dark:prose-invert break-words prose-p:leading-relaxed prose-pre:p-0 text-wrap whitespace-normal prose-p:last:mb-0 prose-p:mb-2">
-                                {/* <MemoizedMarkdown>
+                                className="relative h-full w-full prose dark:prose-invert break-words prose-p:leading-relaxed prose-pre:p-0 text-wrap whitespace-normal prose-p:last:mb-0 prose-p:mb-2"
+                                style={{
+                                    background:
+                                        "linear-gradient(to right, yellow 0%, yellow 50%, transparent 50%)",
+                                    backgroundSize: "200% 100%",
+                                    backgroundPosition: "right",
+                                    transition:
+                                        "background-position 0.5s ease-out"
+                                }}>
+                                <MemoizedMarkdown>
                                     {displayedText}
-                                </MemoizedMarkdown> */}
+                                </MemoizedMarkdown>
 
-                                {toggleTranscript ? (
+                                {/* {toggleTranscript ? (
                                     currentAudio ? (
-                                        <TranscriptHighlight
+                                        <MemoizedMarkdownHighlight
                                             transcript={currentAudio.transcript}
+                                            markdown={displayedText}
                                         />
                                     ) : (
                                         <MemoizedMarkdown>
@@ -386,7 +405,11 @@ export function ChatMessage({
                                     <MemoizedMarkdown>
                                         {displayedText}
                                     </MemoizedMarkdown>
-                                )}
+                                )} */}
+                                <div
+                                    id="highlight-overlay"
+                                    className="absolute bg-yellow-300 opacity-50 rounded-md"
+                                />
                             </div>
                         </ErrorBoundary>
                     )}
@@ -415,14 +438,16 @@ export function ChatMessage({
                     </>
                 )}
 
-                {useWebSpeech && displayAudio && (
+                {useWebSpeech && showAudioPlayer && (
                     <>
                         {createPortal(
                             <div
                                 ref={ttsRef}
                                 className={clsx(
                                     "absolute right-0 z-[1000] transition-all duration-300 ease-in-out",
-                                    displayAudio ? "opacity-100" : "opacity-0"
+                                    showAudioPlayer
+                                        ? "opacity-100"
+                                        : "opacity-0"
                                 )}
                                 style={{
                                     top: audioPlayerTopPosition,
@@ -433,6 +458,7 @@ export function ChatMessage({
                                     text={displayedText}
                                     audioInProgress={audioIsInProgress}
                                     setAudioInProgress={setAudioIsInProgress}
+                                    setShowAudioPlayer={setShowAudioPlayer}
                                     languageId={
                                         preferencesState.applicationSettings
                                             .translateToLanguage.value.id
@@ -450,82 +476,33 @@ export function ChatMessage({
     );
 }
 
-// TODO: Could not get accurate word and segment-level highlighting done in time... I'm kinda lost with how to do it using the markdown renderer...
-
-const TranscriptHighlight: FC<{
-    transcript: Transcript | Partial<Transcript>;
-}> = ({ transcript }) => {
-    const { currentTimeRef } = useAudioPlayer();
-    const wordsRef = useRef<HTMLSpanElement[]>([]);
-
-    useEffect(() => {
-        const highlightActiveWord = () => {
-            const currentTime = currentTimeRef.current;
-            const activeWordIndex = transcript.words.findIndex(
-                (word) => word.start <= currentTime && word.end >= currentTime
-            );
-
-            wordsRef.current.forEach((wordElement, index) => {
-                if (wordElement) {
-                    wordElement.style.fontWeight =
-                        index === activeWordIndex ? "bold" : "normal";
-                    wordElement.style.backgroundColor =
-                        index === activeWordIndex ? "#b91c1c" : "";
-                    wordElement.style.color =
-                        index === activeWordIndex ? "#fef2f2" : "";
-                    wordElement.style.paddingLeft =
-                        index === activeWordIndex ? "1px" : "";
-                    wordElement.style.paddingRight =
-                        index === activeWordIndex ? "1px" : "";
-                }
-            });
-        };
-
-        const intervalId = setInterval(highlightActiveWord, 25);
-
-        return () => clearInterval(intervalId);
-    }, [transcript, currentTimeRef]);
-
-    return (
-        <div className="max-w-full whitespace-normal break-all">
-            {transcript.words.map((word, index) => (
-                <span
-                    key={index}
-                    ref={(el) => (wordsRef.current[index] = el!)}
-                    className="mr-1 rounded-sm transition-all duration-100">
-                    {word.word}
-                </span>
-            ))}
-        </div>
-    );
-};
+// // TODO: Could not get accurate word and segment-level highlighting done in time... I'm kinda lost with how to do it using the markdown renderer...
 
 // const TranscriptHighlight: FC<{
 //     transcript: Transcript | Partial<Transcript>;
 // }> = ({ transcript }) => {
 //     const { currentTimeRef } = useAudioPlayer();
 //     const wordsRef = useRef<HTMLSpanElement[]>([]);
-//     let wordIndex = 0; // Track the index of words in the transcript
 
 //     useEffect(() => {
 //         const highlightActiveWord = () => {
 //             const currentTime = currentTimeRef.current;
+//             const activeWordIndex = transcript.words.findIndex(
+//                 (word) => word.start <= currentTime && word.end >= currentTime
+//             );
 
 //             wordsRef.current.forEach((wordElement, index) => {
-//                 const word = transcript.words[index];
 //                 if (wordElement) {
-//                     if (word.start <= currentTime && word.end >= currentTime) {
-//                         wordElement.style.backgroundColor = "#b91c1c";
-//                         wordElement.style.color = "#fef2f2";
-//                         wordElement.style.paddingLeft = "1px";
-//                         wordElement.style.paddingRight = "1px";
-//                     } else {
-//                         wordElement.style.fontWeight = "normal";
-//                         wordElement.style.backgroundColor = "";
-//                         wordElement.style.color = "";
-//                         wordElement.style.paddingLeft = "";
-//                         wordElement.style.paddingRight = "";
-//                     }
+//                     wordElement.style.fontWeight =
+//                         index === activeWordIndex ? "bold" : "normal";
+//                     wordElement.style.backgroundColor =
+//                         index === activeWordIndex ? "#b91c1c" : "";
+//                     wordElement.style.color =
+//                         index === activeWordIndex ? "#fef2f2" : "";
+//                     // wordElement.style.paddingLeft =
+//                     //     index === activeWordIndex ? "1px" : "";
+//                     // wordElement.style.paddingRight =
+//                     //     index === activeWordIndex ? "1px" : "";
 //                 }
 //             });
 //         };
@@ -537,57 +514,12 @@ const TranscriptHighlight: FC<{
 
 //     return (
 //         <div className="max-w-full whitespace-normal break-all">
-//             {transcript.segments.map((segment, segmentIndex) => (
+//             {transcript.words.map((word, index) => (
 //                 <span
-//                     key={`segment-${segmentIndex}`}
+//                     key={index}
+//                     ref={(el) => (wordsRef.current[index] = el!)}
 //                     className="mr-1 rounded-sm transition-all duration-100">
-//                     {segment.text
-//                         .split(" ")
-//                         .map((wordText, wordIndexInSegment) => {
-//                             const cleanWordText = wordText.replace(
-//                                 /[.,!?]/g,
-//                                 ""
-//                             );
-
-//                             // Find the next matching word in the transcript
-//                             const word = transcript.words[wordIndex];
-
-//                             // Check if the word matches the cleaned word text
-//                             const isMatchingWord =
-//                                 word && word.word === cleanWordText;
-
-//                             if (isMatchingWord) {
-//                                 const wordWithPunctuation = wordText.includes(
-//                                     word.word
-//                                 )
-//                                     ? wordText
-//                                     : word.word;
-
-//                                 const refIndex = wordIndex; // Capture the current word index
-//                                 wordIndex++; // Move to the next word in the transcript
-
-//                                 return (
-//                                     <span
-//                                         key={`word-${segmentIndex}-${wordIndexInSegment}`}
-//                                         ref={(el) =>
-//                                             (wordsRef.current[refIndex] = el!)
-//                                         }
-//                                         className="mr-1 rounded-sm transition-all duration-100">
-//                                         {wordWithPunctuation}
-//                                     </span>
-//                                 );
-//                             } else {
-//                                 // Return spaces and punctuation as is, ensuring no extra spaces are added
-//                                 return (
-//                                     <span
-//                                         key={`word-${segmentIndex}-${wordIndexInSegment}`}
-//                                         className="rounded-sm transition-all duration-100">
-//                                         {wordText}
-//                                     </span>
-//                                 );
-//                             }
-//                         })}
-//                     {segmentIndex < transcript.segments.length - 1 && " "}
+//                     {word.word}
 //                 </span>
 //             ))}
 //         </div>
@@ -614,6 +546,14 @@ const MemoizedMarkdown = memo(
                             },
                             props: {
                                 className: "mb-2 last:mb-0"
+                            }
+                        },
+                        span: {
+                            component: ({ children, ...props }) => {
+                                return <span {...props}>{children}</span>;
+                            },
+                            props: {
+                                className: "px-1 rounded-md last:mb-0"
                             }
                         },
                         code: {
@@ -673,3 +613,91 @@ const MemoizedMarkdown = memo(
         );
     }
 );
+
+// const MemoizedMarkdown = memo(
+//     ({
+//         children,
+//         options,
+//         ...props
+//     }: {
+//         [key: string]: any;
+//         children: string;
+//         options?: MarkdownToJSX.Options;
+//     }) => {
+//         return (
+//             <Markdown
+//                 options={{
+//                     overrides: {
+//                         p: {
+//                             component: ({ children, ...props }) => {
+//                                 return <p {...props}>{children}</p>;
+//                             },
+//                             props: {
+//                                 className: "mb-2 last:mb-0"
+//                             }
+//                         },
+//                         span: {
+//                             component: ({ children, ...props }) => {
+//                                 return <span {...props}>{children}</span>;
+//                             },
+//                             props: {
+//                                 className: "px-1 rounded-md last:mb-0"
+//                             }
+//                         },
+//                         code: {
+//                             component: ({
+//                                 node,
+//                                 inline,
+//                                 className,
+//                                 children,
+//                                 ...props
+//                             }) => {
+//                                 if (children.length) {
+//                                     if (children[0] == "▍") {
+//                                         return (
+//                                             <span className="mt-1 cursor-default animate-pulse">
+//                                                 ▍
+//                                             </span>
+//                                         );
+//                                     }
+
+//                                     children[0] = (
+//                                         children[0] as string
+//                                     ).replace("`▍`", "▍");
+//                                     // children[0] = (
+//                                     //     children[0] as string
+//                                     // ).replace("` `", " ");
+//                                 }
+
+//                                 const match = /language-(\w+)/.exec(
+//                                     className || ""
+//                                 );
+
+//                                 if (inline) {
+//                                     return (
+//                                         <code className={className} {...props}>
+//                                             {children}
+//                                         </code>
+//                                     );
+//                                 }
+
+//                                 return (
+//                                     <CodeBlock
+//                                         key={Math.random()}
+//                                         language={(match && match[1]) || ""}
+//                                         value={String(children).replace(
+//                                             /\n$/,
+//                                             ""
+//                                         )}
+//                                         {...props}
+//                                     />
+//                                 );
+//                             }
+//                         }
+//                     }
+//                 }}>
+//                 {children}
+//             </Markdown>
+//         );
+//     }
+// );

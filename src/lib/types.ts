@@ -202,3 +202,14 @@ export interface Audio {
         type: string;
     };
 }
+
+export type MenuOptionTitle =
+    | "Describe"
+    | "Describe and Read Aloud"
+    | "Describe and Translate"
+    | "Summarize"
+    | "Simplify"
+    | "Explain"
+    | "Translate"
+    | "Summarize and Translate"
+    | "Read aloud";

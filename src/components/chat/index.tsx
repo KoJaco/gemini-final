@@ -1,5 +1,6 @@
 "use client";
 
+import { menuOptionToPrompt } from "@/lib/constants/chat";
 import { helpfulQuestions } from "@/lib/constants/components";
 import RateLimiter from "@/lib/rate-limiter";
 import {
@@ -12,6 +13,7 @@ import { useAppStore } from "@/lib/stores/appStore";
 import type {
     ChatThread,
     ContextOption,
+    MenuOptionTitle,
     Message,
     ThreadSummary
 } from "@/lib/types";
@@ -41,61 +43,6 @@ import {
 
 // TODO: 1. context menu options don't update the thread properly (local state), 2. Should we attach and render images in the chat interface? requires storing on messages && creating a new store, 3.
 
-// TODO: these should probably be slugs
-type MenuOptionTitle =
-    | "Describe"
-    | "Describe and Read Aloud"
-    | "Describe and Translate"
-    | "Summarize"
-    | "Simplify"
-    | "Explain"
-    | "Translate"
-    | "Summarize and Translate"
-    | "Read aloud";
-
-// TODO: Add actions attached to each record that we can add as our user message... this could be a different style maybe.
-export const menuOptionToPrompt: Record<
-    MenuOptionTitle,
-    { action: string; prompt: string }
-> = {
-    Describe: {
-        action: "Describing selected image.",
-        prompt: "Describe the following image and pay close attention to the details:"
-    },
-    "Describe and Read Aloud": {
-        action: "Describing and reading aloud selected image.",
-        prompt: "Describe and read aloud the following image and pay close attention to the details:"
-    },
-    "Describe and Translate": {
-        action: "Describing and translating selected image.",
-        prompt: "Describe the following image and return your response in"
-    },
-    Summarize: {
-        action: "Summarizing content.",
-        prompt: "Your job is to summarize text content. Here is the text content to summarize:"
-    },
-    Simplify: {
-        action: "Simplifying content.",
-        prompt: "Your job is to simplify text content. If you cannot find a reasonable solution for simplification, state why you cannot simplify it. Here is the content to be simplified:"
-    },
-    Explain: {
-        action: "Explaining content.",
-        prompt: "Explain the content of the following element in detail:"
-    },
-    Translate: {
-        action: "Translating content.",
-        prompt: "Translate the content of the following element:"
-    },
-    "Summarize and Translate": {
-        action: "Summarizing and translating content.",
-        prompt: "Summarize and translate the content of the following element:"
-    },
-    "Read aloud": {
-        action: "Reading aloud content.",
-        prompt: "Read aloud the content of the following element:"
-    }
-};
-
 // TODO: Grab from preferences (apply differences to image comprehension calls and text gen calls -- one is much more expensive, can you guess which?)
 const rateLimiter = new RateLimiter(10, 60000); // limited to 10 calls per minute
 
@@ -110,7 +57,6 @@ const Chat = ({
 }) => {
     const { setTypewriter, geminiApiKey, preferencesState, setRecording } =
         useAppStore();
-    // console.log(preferencesState);
     const characteristicsPreference =
         preferencesState.aiSettings.characteristics.value;
     const interactionsPreference =
@@ -118,16 +64,9 @@ const Chat = ({
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
 
-    const [loading, setLoading] = useState(false);
     const [input, setInput] = useState<string>("");
 
-    const hoveredElementRef = useRef<HTMLElement | null>(null);
-
-    const [contextOption, setContextOption] = useState(null);
-
     const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-
-    // TODO: Extrapolate out types on put into single file.
 
     // handle forwarded messages from background script.
     useEffect(() => {
@@ -170,15 +109,13 @@ const Chat = ({
             } else if (message.action === "VOICE_COMMAND_DATA_TO_SIDEPANEL") {
                 setRecording(false);
 
-                console.log("Chat", message.payload.payload);
-
                 // Convert the received array back to a Uint8Array
                 const uint8Array = new Uint8Array(
                     message.payload.payload.inlineData.audioBuffer
                 );
                 const audioBlob = new Blob([uint8Array], { type: "audio/wav" });
-                console.log("audio in chat: ", audioBlob);
                 setAudioBlob(audioBlob);
+
                 const res = await getSimpleTranscription(audioBlob);
 
                 if (res.success) {
@@ -352,7 +289,11 @@ const Chat = ({
             }
         }
         if (title === "Translate" || title === "Summarize and Translate") {
-            prompt = `You are a translator who can translate many languages into ${languagePreference}. ${menuOptionToPrompt[title].prompt} to ${languagePreference}: "${content}"`;
+            prompt = `You are a translator who can translate many languages into ${languagePreference}. 
+                
+                ${menuOptionToPrompt[title].prompt} to ${languagePreference}: 
+                
+                "${content}"`;
         } else if (title === "Simplify") {
             prompt = `${menuOptionToPrompt[title].prompt} "${content}"\n\nYou should respond with a simplified version of the text content, however, please also ${interactionsPreference}`;
         } else if (title === "Summarize") {

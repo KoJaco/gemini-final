@@ -25,9 +25,8 @@
         "@radix-ui/react-slider": "^1.2.0",
         "@radix-ui/react-slot": "^1.1.0",
         "@radix-ui/react-switch": "^1.1.0",
+        "@radix-ui/react-toast": "^1.2.1",
         "@radix-ui/react-tooltip": "^1.1.2",
-        "@stripe/react-stripe-js": "^2.8.0",
-        "@stripe/stripe-js": "^4.4.0",
         "axios": "^1.7.2",
         "class-variance-authority": "^0.7.0",
         "clsx": "^2.1.1",
@@ -85,7 +84,16 @@
             "sidePanel",
             "scripting",
             "storage",
-            "tabCapture"
-        ]
+            "tabCapture",
+            "offscreen"
+        ],
+        "oauth2": {
+            "client_id": "$PLASMO_PUBLIC_FIREBASE_CLIENT_ID",
+            "scopes": [
+                "https://www.googleapis.com/auth/userinfo.email",
+                "https://www.googleapis.com/auth/userinfo.profile"
+            ]
+        },
+        "key": "$CRX_PUBLIC_KEY"
     }
 }

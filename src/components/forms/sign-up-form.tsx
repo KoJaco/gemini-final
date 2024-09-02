@@ -15,15 +15,6 @@ import { Label } from "@/components/ui/label";
 import { auth } from "@/lib/firebase/firebase-client";
 import useFirebaseUser from "@/lib/firebase/hooks/use-firebase-user";
 import type { AvailableInitialViews } from "@/lib/types";
-import {
-    CardElement,
-    Elements,
-    EmbeddedCheckout,
-    EmbeddedCheckoutProvider,
-    useElements,
-    useStripe
-} from "@stripe/react-stripe-js";
-import { loadStripe, type PaymentMethod } from "@stripe/stripe-js";
 import clsx from "clsx";
 import {
     createUserWithEmailAndPassword,
@@ -42,11 +33,11 @@ type Props = {
 };
 
 // don't want to recreate stripe object on every render...
-const stripePromise = loadStripe(
-    process.env.PLASMO_PUBLIC_STRIPE_PUBLISHABLE_KEY
-);
+// const stripePromise = loadStripe(
+//     process.env.PLASMO_PUBLIC_STRIPE_PUBLISHABLE_KEY
+// );
 
-type SignUpStateKey = "auth" | "plan" | "payment" | "review" | "completed";
+type SignUpStateKey = "auth" | "plan" | "review" | "payment" | "completed";
 
 type Plan = {
     id: string;
@@ -67,7 +58,8 @@ interface SignUpState {
     };
     payment: {
         cardDetailsSuccessful: boolean;
-        method: string | PaymentMethod;
+        // method: string | PaymentMethod;
+        method: string;
         error: string;
     };
     review: {
@@ -77,7 +69,7 @@ interface SignUpState {
     };
 }
 
-const signUpStages = ["auth", "plan", "payment", "review", "completed"];
+const signUpStages = ["auth", "plan", "review", "payment", "completed"];
 
 const FREE_TRIAL_PLAN: Plan = {
     id: "free-trial",
@@ -155,13 +147,31 @@ export function SignUpFlow({ setInitialView }: Props) {
                     return (
                         <button
                             key={index}
-                            onClick={() => setCurrentSignUpState(stage)}>
+                            onClick={() => setCurrentSignUpState(stage)}
+                            className="flex items-end gap-x-1">
                             <span
                                 className={clsx(
-                                    "bg-primary w-2 h-2 flex rounded-full",
+                                    "text-md",
+                                    activeIndex === index
+                                        ? "opacity-100"
+                                        : "opacity-50"
+                                )}>
+                                {index + 1}
+                            </span>
+                            {/* <span
+                                className={clsx(
+                                    "bg-primary w-1 h-1 flex rounded-full",
                                     activeIndex === index
                                         ? "opacity-100 scale-150"
                                         : "opacity-50"
+                                )}
+                            /> */}
+                            <span
+                                className={clsx(
+                                    "bg-primary h-[2px] flex rounded-full transition-all duration-300 mb-1",
+                                    activeIndex === index
+                                        ? "w-[100px] opacity-100"
+                                        : "w-[2px] opacity-50"
                                 )}
                             />
                         </button>
@@ -171,13 +181,12 @@ export function SignUpFlow({ setInitialView }: Props) {
             <Card>
                 <CardHeader>
                     <CardTitle className="capitalize text-xl">
-                        {currentSignUpState === "auth" &&
-                            "1. Create an Account"}
-                        {currentSignUpState === "plan" && "2. Select a plan"}
-                        {currentSignUpState === "payment" &&
-                            "3. Enter payment details"}
+                        {currentSignUpState === "auth" && "Create an Account"}
+                        {currentSignUpState === "plan" && "Select a plan"}
                         {currentSignUpState === "review" &&
-                            "4. Review your information"}
+                            "Review your information"}
+                        {currentSignUpState === "payment" &&
+                            "Enter payment details"}
                     </CardTitle>
                 </CardHeader>
 
@@ -195,33 +204,30 @@ export function SignUpFlow({ setInitialView }: Props) {
                         <PlanSelectionForm
                             signUpState={signUpState}
                             setSignUpState={setSignUpState}
-                            onNext={() => setCurrentSignUpState("payment")}
-                            onPrevious={() => setCurrentSignUpState("auth")}
+                            onNext={() => setCurrentSignUpState("review")}
+                            onPrevious={() => setCurrentSignUpState("plan")}
                         />
-                    )}
-                    {currentSignUpState === "payment" && (
-                        <Elements stripe={stripePromise}>
-                            <PaymentSetupForm
-                                signUpState={signUpState}
-                                setSignUpState={setSignUpState}
-                                onNext={() => setCurrentSignUpState("review")}
-                            />
-                        </Elements>
-                        // <CheckoutReturn
-                        //     signUpState={signUpState}
-                        //     setSignUpState={setSignUpState}
-                        //     onNext={() => setCurrentSignUpState("review")}
-                        //     onPrevious={() => setCurrentSignUpState("auth")}
-                        // />
                     )}
                     {currentSignUpState === "review" && (
                         <Review
                             signUpState={signUpState}
                             setSignUpState={setSignUpState}
-                            onNext={() => setCurrentSignUpState("completed")}
-                            onPrevious={() => setCurrentSignUpState("payment")}
+                            onNext={() => setCurrentSignUpState("payment")}
+                            onPrevious={() => setCurrentSignUpState("plan")}
                         />
                     )}
+                    {/* {currentSignUpState === "payment" && (
+                        <Elements stripe={stripePromise}>
+                            <PaymentSetupForm
+                                signUpState={signUpState}
+                                setSignUpState={setSignUpState}
+                                onNext={() =>
+                                    setCurrentSignUpState("completed")
+                                }
+                            />
+                        </Elements>
+
+                    )} */}
                 </CardContent>
                 <CardFooter>
                     {currentSignUpState === "auth" && (
@@ -334,10 +340,15 @@ export function SignUpForm({
     };
 
     const handleSignUpWithPopup = async (e: any) => {
+        console.log("Before logic");
         const google = new GoogleAuthProvider();
+
+        console.log("init Google");
 
         try {
             const userRes: UserCredential = await signInWithPopup(auth, google);
+
+            console.log("userRes", userRes);
 
             if (userRes) {
                 // handle the successful sign-up of a user. Store this for now until they put payment details in. Don't know if I should send this to backend yet and save to a DB if Stripe payment is not secured...
@@ -500,9 +511,6 @@ const PaymentSetupForm = ({
     setSignUpState,
     onNext
 }: PaymentSetupFormProps) => {
-    const stripe = useStripe();
-    const elements = useElements();
-
     const [clientSecret, setClientSecret] = useState("");
 
     useEffect(() => {
@@ -514,55 +522,10 @@ const PaymentSetupForm = ({
             .then((data) => setClientSecret(data.clientSecret));
     }, []);
 
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-
-        if (!stripe || !elements) {
-            // Stripe.js hasn't loading yet... disable form submission
-            return;
-        }
-
-        const cardElement = elements.getElement(CardElement);
-
-        const { error, setupIntent } = await stripe.confirmCardSetup(
-            clientSecret,
-            {
-                payment_method: {
-                    card: cardElement
-                }
-            }
-        );
-
-        if (error) {
-            console.log(error.message);
-            setSignUpState({
-                ...signUpState,
-                payment: {
-                    cardDetailsSuccessful: false,
-                    method: "",
-                    error: error.message
-                }
-            });
-        } else {
-            console.log("Setup Intent succeeded:", setupIntent);
-            setSignUpState({
-                ...signUpState,
-                payment: {
-                    cardDetailsSuccessful: true,
-                    method: setupIntent.payment_method,
-                    error: ""
-                }
-            });
-            onNext();
-        }
-    };
-
     return (
-        <form onSubmit={handleSubmit}>
-            <CardElement />
-            <button type="submit" disabled={!stripe}>
-                Save Card Details
-            </button>
+        <form>
+            {/* <CardElement /> */}
+            <button type="submit">Save Card Details</button>
         </form>
         // <div id="checkout">
         //     <EmbeddedCheckoutProvider stripe={stripePromise} options={options}>
@@ -573,44 +536,6 @@ const PaymentSetupForm = ({
         //     </div>
         // </div>
     );
-};
-
-const CheckoutReturn = (props: PaymentSetupFormProps) => {
-    const [status, setStatus] = useState(null);
-    const [customerEmail, setCustomerEmail] = useState("");
-
-    useEffect(() => {
-        const queryString = window.location.search;
-        const urlParams = new URLSearchParams(queryString);
-        const sessionId = urlParams.get("session_id");
-
-        fetch(`/session-status?session_id=${sessionId}`)
-            .then((res) => res.json())
-            .then((data) => {
-                setStatus(data.status);
-                setCustomerEmail(data.customer_email);
-            });
-    }, []);
-
-    if (status === "open") {
-        return <PaymentSetupForm {...props} />;
-    }
-
-    if (status === "complete") {
-        return (
-            // TODO: add complete card with user acceptance to return to the main app... this should push everything to the backend and handle the association of a user and customer (user->paymentId)
-            <section id="success">
-                <p>
-                    We appreciate your business! A confirmation email will be
-                    sent to {customerEmail}. If you have any questions, please
-                    email{" "}
-                    <a href="mailto:orders@example.com">orders@example.com</a>.
-                </p>
-            </section>
-        );
-    }
-
-    return null;
 };
 
 type ReviewFormProps = {

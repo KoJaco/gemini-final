@@ -19,12 +19,14 @@ const WebTTS = ({
     text,
     audioInProgress,
     setAudioInProgress,
+    setShowAudioPlayer,
     languageId
 }: {
     messageId: string;
     text: string;
     audioInProgress: boolean;
     setAudioInProgress: (value: boolean) => void;
+    setShowAudioPlayer: (value: boolean) => void;
     languageId: "en-AU" | "es";
 }) => {
     const [speaking, setSpeaking] = useState(false);
@@ -222,6 +224,7 @@ const WebTTS = ({
         window.getSelection()?.removeAllRanges();
         setSpeaking(false);
         setAudioInProgress(false);
+        setShowAudioPlayer(false);
     };
 
     const handleSkipForward = () => {

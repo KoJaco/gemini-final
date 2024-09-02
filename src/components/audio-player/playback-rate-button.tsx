@@ -101,7 +101,7 @@ export function PlaybackRateButton({ player }: { player: PlayerAPI }) {
             type="button"
             size="icon"
             variant="ghost"
-            className="relative flex items-center justify-center rounded-md text-background hover:bg-secondary hover:text-secondary p-1 focus:outline-none "
+            className="relative flex items-center justify-center rounded-md p-1 focus:outline-none hover:bg-accent hover:text-accent-foreground"
             onClick={() => {
                 setPlaybackRate((rate) => {
                     let existingIdx = playbackRates.indexOf(rate);
@@ -114,8 +114,7 @@ export function PlaybackRateButton({ player }: { player: PlayerAPI }) {
                 });
             }}
             aria-label="Playback rate">
-            <div className="absolute -inset-4 md:hidden" />
-            <playbackRate.icon className="h-6 w-6" />
+            <playbackRate.icon className="h-6 w-6 text-accent-foreground dark:text-background rounded-md" />
         </Button>
     );
 }
