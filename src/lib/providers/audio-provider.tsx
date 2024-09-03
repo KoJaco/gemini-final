@@ -20,6 +20,38 @@ interface PlayerState {
     audioBlob: Blob | null;
 }
 
+type WordMapping = {
+    normalized: string;
+    original: string;
+};
+
+type RangeInfo = {
+    range: Range;
+    original: string;
+    start?: number;
+    end?: number;
+};
+
+type NodeInfo = {
+    id: string;
+    text: string;
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+    start?: number;
+    end?: number;
+    ranges: RangeInfo[];
+};
+
+type WordPosition = {
+    word: string;
+    start: number;
+    end: number;
+    spans: number;
+    textNodeId: string;
+};
+
 interface PublicPlayerActions {
     play: (audio?: Audio, audioBlob?: Blob) => void;
     pause: () => void;
@@ -78,15 +110,6 @@ function audioReducer(state: PlayerState, action: Action): PlayerState {
 
 const leeway = 0.05;
 
-interface WordPosition {
-    word: string;
-    start: number;
-    end: number;
-    top: number;
-    left: number;
-    width: number;
-    height: number;
-}
 export function AudioProvider({
     children,
     transcript,
@@ -113,165 +136,354 @@ export function AudioProvider({
     const activeWordIndex = useRef<number | null>(null);
 
     const [wordPositions, setWordPositions] = useState<WordPosition[]>([]);
+    const [nodeInfo, setNodeInfo] = useState<any[]>([]);
+    const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
+
+    // function mapTranscriptToNodeInfo(
+    //     transcript: Partial<Transcript>,
+    //     nodeInfo: NodeInfo[]
+    // ) {
+    //     const wordMappings: any[] = [];
+    //     let remainingWords = [...transcript.words];
+
+    //     for (const node of nodeInfo) {
+    //         const wordMapping = normalizeTextWithPunctuation(node.text);
+
+    //         let nodeStartTime: number | null = null;
+    //         let nodeEndTime: number | null = null;
+    //         let transcriptIndex = 0;
+
+    //         for (let i = 0; i < wordMapping.length; i++) {
+    //             const m = wordMapping[i];
+
+    //             // Find the first matching word in the remainingWords array
+    //             while (
+    //                 transcriptIndex < remainingWords.length &&
+    //                 remainingWords[transcriptIndex].word.toLowerCase() !==
+    //                     m.normalized.toLowerCase()
+    //             ) {
+    //                 transcriptIndex++;
+    //             }
+
+    //             if (transcriptIndex < remainingWords.length) {
+    //                 const transcriptWord = remainingWords[transcriptIndex];
+
+    //                 if (nodeStartTime === null) {
+    //                     nodeStartTime = transcriptWord.start;
+    //                 }
+
+    //                 nodeEndTime = transcriptWord.end;
+
+    //                 // Find the range within the node that corresponds to the current word
+    //                 const rangeInfo = node.ranges.find(
+    //                     (range) =>
+    //                         range.original === m.original &&
+    //                         !range.start &&
+    //                         !range.end
+    //                 );
+
+    //                 if (rangeInfo) {
+    //                     rangeInfo.start = transcriptWord.start;
+    //                     rangeInfo.end = transcriptWord.end;
+    //                 }
+
+    //                 const mappingWord = {
+    //                     textNodeId: node.id,
+    //                     word: m.original,
+    //                     start: transcriptWord.start,
+    //                     end: transcriptWord.end,
+    //                     spans: m.original.length
+    //                 };
+
+    //                 wordMappings.push(mappingWord);
+
+    //                 // Increment the transcript index for the next iteration
+    //                 transcriptIndex++;
+    //             }
+    //         }
+
+    //         if (nodeStartTime !== null && nodeEndTime !== null) {
+    //             node.start = nodeStartTime;
+    //             node.end = nodeEndTime;
+    //         }
+    //     }
+
+    //     return { nodeInfoParsed: nodeInfo, mappings: wordMappings };
+    // }
+
+    function mapTranscriptToNodeInfo(
+        transcript: Partial<Transcript>,
+        nodeInfo: NodeInfo[]
+    ) {
+        const wordMappings: any[] = [];
+
+        let remainingWords = [...transcript.words];
+
+        for (const node of nodeInfo) {
+            const wordMapping = normalizeTextWithPunctuation(node.text);
+
+            let nodeStartTime: number | null = null;
+            let nodeEndTime: number | null = null;
+
+            for (const m of wordMapping) {
+                const transcriptWordIndex = remainingWords.findIndex(
+                    (tWord) => {
+                        return (
+                            // index >= currentRemainingWordsIndex &&
+                            tWord.word.toLowerCase() ===
+                            m.normalized.toLowerCase()
+                        );
+                    }
+                );
+
+                // if (newRanges.length !== wordMapping.length) {
+                //     console.log("KABOONGA: ");
+                //     console.log(newRanges);
+                //     console.log(wordMapping);
+                // }
+
+                if (transcriptWordIndex !== -1) {
+                    const transcriptWord = remainingWords[transcriptWordIndex];
+
+                    if (nodeStartTime === null) {
+                        nodeStartTime = transcriptWord.start;
+                    }
+
+                    nodeEndTime = transcriptWord.end;
+
+                    // How about iterating through transcript words between nodeStartTime and nodeEndTime, comparing m.original to range.original, then changing rangeInfo in place (adjust start and end time).
+
+                    const mappingWord = {
+                        textNodeId: node.id,
+                        word: m.original,
+                        start: transcriptWord.start,
+                        end: transcriptWord.end,
+                        spans: m.original.length
+                    };
+                    wordMappings.push(mappingWord);
+
+                    // Remove the found word from the remainingWords array
+                    remainingWords.splice(transcriptWordIndex, 1);
+                    // currentRemainingWordsIndex = transcriptWordIndex + 1;
+                }
+            }
+
+            if (nodeStartTime !== null && nodeEndTime !== null) {
+                node.start = nodeStartTime;
+                node.end = nodeEndTime;
+            }
+        }
+
+        return { nodeInfoParsed: nodeInfo, mappings: wordMappings };
+    }
+
+    function normalizeTextWithPunctuation(text: string) {
+        // Replace hyphens with spaces and remove other punctuation, but preserve original words
+        const words = text.split(/\s+/);
+        // const words = text.split(/[\s-]+/);
+
+        const wordMapping: Array<{ normalized: string; original: string }> = [];
+
+        for (const word of words) {
+            if (word.includes("-")) {
+                // split the word by hyphen but retain the hyphen in the subsequent parts
+                const parts = word.split("-");
+                parts.forEach((part, index) => {
+                    if (index > 0) {
+                        part = "-" + part;
+                    }
+                    const normalizedPart = part.replace(/[^\w\s]/g, "");
+                    if (normalizedPart) {
+                        wordMapping.push({
+                            normalized: normalizedPart,
+                            original: part
+                        });
+                    }
+                });
+            } else {
+                const normalizedWord = word
+                    // .replace(/-/g, " ")
+                    .replace(/[^\w\s]/g, "");
+                if (normalizedWord) {
+                    wordMapping.push({
+                        normalized: normalizedWord,
+                        original: word
+                    });
+                }
+            }
+        }
+
+        return wordMapping;
+    }
 
     const calculateWordPositions = (
         transcript: Partial<Transcript>,
         containerId: string
     ): WordPosition[] => {
         const container = document.getElementById(containerId);
-        const wordPositions: WordPosition[] = [];
+        const nodeInfo: {
+            id: string;
+            text: string;
+            top: number;
+            right: number;
+            bottom: number;
+            left: number;
+            ranges;
+        }[] = [];
 
         if (!container) {
             console.error(`Container with id ${containerId} not found`);
             return wordPositions;
         }
 
-        let currentCharIdx = 0; // Keep track of the cumulative character index
-        let foundStart = false;
+        // console.log("Container: ", container);
+        // console.log("Transcript Words: ", transcript.words);
 
-        // Iterate over each word in the transcript
-        transcript.words?.forEach((transcriptWord) => {
-            const range = document.createRange();
-            let startNode: Node | null = null;
-            let startOffset = 0;
-            let endNode: Node | null = null;
-            let endOffset = 0;
+        let currentIndex = 0;
 
-            function traverseNodes(node: ChildNode) {
-                if (foundStart && endNode) return; // Stop if we've found the word
+        // traverse child nodes recursively
+        function traverseNodes(node: ChildNode) {
+            // console.log(node);
 
-                if (node.nodeType === Node.TEXT_NODE) {
-                    const textContent = node.textContent || "";
-                    const nodeEndIndex = currentCharIdx + textContent.length;
+            // check if the node is an element
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                const element = node as Element;
 
-                    if (
-                        !foundStart &&
-                        currentCharIdx <= transcriptWord.start! &&
-                        transcriptWord.start! < nodeEndIndex
-                    ) {
-                        startNode = node;
-                        startOffset = transcriptWord.start! - currentCharIdx;
-                        foundStart = true;
-                    }
+                // check if the element has a direct child that is a text node (want to store <li> but not <ul>)
 
-                    if (
-                        foundStart &&
-                        !endNode &&
-                        transcriptWord.end! <= nodeEndIndex
-                    ) {
-                        endNode = node;
-                        endOffset = transcriptWord.end! - currentCharIdx;
-                    }
+                const hasTextChild = Array.from(element.childNodes).some(
+                    (child) => child.nodeType === Node.TEXT_NODE
+                );
 
-                    currentCharIdx = nodeEndIndex;
-                } else {
-                    node.childNodes.forEach(traverseNodes);
+                if (hasTextChild) {
+                    // Generate unique ID
+                    const uniqueId = `text-node-${currentIndex}`;
+                    element.id = uniqueId;
+
+                    const rect = element.getBoundingClientRect();
+
+                    const ranges: {
+                        range: Range;
+                        original: string;
+                    }[] = [];
+
+                    element.childNodes.forEach((childNode) => {
+                        if (childNode.nodeType === Node.TEXT_NODE) {
+                            const textNode = childNode as Text;
+                            const textContent = textNode.textContent || "";
+
+                            const wordMapping =
+                                normalizeTextWithPunctuation(textContent);
+
+                            let currentOffset = 0;
+
+                            wordMapping.forEach((mapping) => {
+                                const range = document.createRange();
+
+                                range.setStart(childNode, currentOffset);
+                                range.setEnd(
+                                    childNode,
+                                    currentOffset + mapping.original.length
+                                );
+
+                                ranges.push({
+                                    range,
+                                    original: mapping.original
+                                });
+
+                                currentOffset += mapping.original.length;
+                            });
+                        }
+                    });
+
+                    // also traverse text nodes
+
+                    currentIndex++;
+                    nodeInfo.push({
+                        id: uniqueId,
+                        text: element.textContent,
+                        top: rect.top,
+                        right: rect.right,
+                        bottom: rect.bottom,
+                        left: rect.left,
+                        ranges: ranges
+                    });
                 }
             }
 
-            container.childNodes.forEach(traverseNodes);
+            node.childNodes.forEach((childNode) => traverseNodes(childNode));
+        }
 
-            if (startNode && endNode) {
-                range.setStart(startNode, startOffset);
-                range.setEnd(endNode, endOffset);
-                const rect = range.getBoundingClientRect();
+        container.childNodes.forEach((childNode) => traverseNodes(childNode));
 
-                wordPositions.push({
-                    word: transcriptWord.word,
-                    start: transcriptWord.start!,
-                    end: transcriptWord.end!,
-                    top: rect.top,
-                    left: rect.left,
-                    width: rect.width,
-                    height: rect.height
-                });
-            }
+        const { nodeInfoParsed, mappings } = mapTranscriptToNodeInfo(
+            transcript,
+            nodeInfo
+        );
 
-            // Reset for the next word
-            foundStart = false;
-        });
+        setNodeInfo(nodeInfoParsed);
 
-        return wordPositions;
+        console.log("mappings: ", mappings);
+        console.log("node info: ", nodeInfo);
+        return mappings;
     };
 
     useEffect(() => {
-        if (transcript && transcript.words) {
+        nodeInfo.forEach((node) => {
+            const element = document.getElementById(node.id);
+
+            if (element) {
+                if (node.id === activeNodeId) {
+                    element.style.backgroundColor = "#d1d5db25";
+                    element.style.color = "invert";
+                    element.style.padding = "4px 8px"; // Add padding to make the text stand out
+                    element.style.borderRadius = "8px"; // Rounded corners
+                    element.style.transition =
+                        "background-color 0.3s ease, padding 0.3s ease"; // Smooth transition for the highlight
+                    element.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.1)"; // Subtle shadow for a lifted effect
+                } else {
+                    element.style.backgroundColor = "";
+                    element.style.padding = "";
+                    element.style.borderRadius = "";
+                    element.style.boxShadow = "";
+                }
+            }
+        });
+    }, [activeNodeId, nodeInfo]);
+
+    const updateHighlight = useCallback(() => {
+        if (playerRef.current && nodeInfo) {
+            const currentTime = playerRef.current.currentTime;
+            currentTimeRef.current = currentTime;
+
+            const activeNode = nodeInfo.find(
+                (node) =>
+                    currentTime >= node.start - leeway &&
+                    currentTime <= node.end
+            );
+
+            if (activeNode && activeWordIndex) {
+                setActiveNodeId(activeNode.id);
+            } else {
+                setActiveNodeId(null);
+            }
+
+            animationFrameIdRef.current =
+                requestAnimationFrame(updateHighlight);
+        }
+    }, []);
+
+    // on mount, if transcript exists calc word positions
+    useEffect(() => {
+        if (transcript && transcript.words && messageId) {
             const wordPositions = calculateWordPositions(
                 transcript,
                 `text-content-${messageId}`
             );
 
-            console.log(wordPositions);
             setWordPositions(wordPositions);
         }
     }, []);
-
-    const highlightWord = (wordPosition) => {
-        const highlightOverlay = document.getElementById("highlight-overlay");
-        highlightOverlay.style.top = `${wordPosition.top}px`;
-        highlightOverlay.style.left = `${wordPosition.left}px`;
-        highlightOverlay.style.width = `${wordPosition.width}px`;
-        highlightOverlay.style.height = `${wordPosition.height}px`;
-        highlightOverlay.style.display = "block";
-    };
-
-    const updateHighlight = useCallback(() => {
-        if (playerRef.current) {
-            const currentTime = playerRef.current.currentTime;
-            currentTimeRef.current = currentTime;
-
-            if (wordPositions.length > 0) {
-                const wordPosition = wordPositions.find(
-                    (word) =>
-                        currentTime >= word.start && currentTime < word.end
-                );
-
-                if (wordPosition) {
-                    highlightWord(wordPosition);
-                }
-
-                // highlightWordBasedOnTime(currentTime);
-
-                animationFrameIdRef.current =
-                    requestAnimationFrame(updateHighlight);
-            }
-        }
-    }, []);
-
-    const highlightWordBasedOnTime = (currentTime) => {
-        if (
-            !activeWordIndex.current &&
-            !transcript.words &&
-            activeWordIndex.current === transcript.words.length - 1
-        )
-            return;
-
-        const nextWord = transcript.words[activeWordIndex.current + 1];
-
-        if (currentTime > nextWord.start) {
-            console.log(
-                currentTime + " | " + nextWord.word + " | " + calculateRange()
-            );
-
-            const start = calculateRange();
-            const end = start + nextWord.word.length;
-
-            // highlightText(start, end);
-            console.log("Start Index: " + start + "\n\n" + "End Index: " + end);
-
-            activeWordIndex.current = activeWordIndex.current + 1;
-        }
-    };
-
-    function calculateRange() {
-        let cumulativeRange = 0;
-
-        for (let i = 0; i < activeWordIndex.current; i++) {
-            cumulativeRange += transcript.words[i].word.length;
-        }
-
-        return cumulativeRange;
-    }
 
     useEffect(() => {
         if (!transcript?.words || !messageId) return;

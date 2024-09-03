@@ -377,15 +377,7 @@ export function ChatMessage({
                             }>
                             <div
                                 id={`text-content-${message.id}`}
-                                className="relative h-full w-full prose dark:prose-invert break-words prose-p:leading-relaxed prose-pre:p-0 text-wrap whitespace-normal prose-p:last:mb-0 prose-p:mb-2"
-                                style={{
-                                    background:
-                                        "linear-gradient(to right, yellow 0%, yellow 50%, transparent 50%)",
-                                    backgroundSize: "200% 100%",
-                                    backgroundPosition: "right",
-                                    transition:
-                                        "background-position 0.5s ease-out"
-                                }}>
+                                className="relative h-full w-full prose dark:prose-invert break-words prose-p:leading-relaxed prose-pre:p-0 text-wrap whitespace-normal prose-p:last:mb-0 prose-p:mb-2">
                                 <MemoizedMarkdown>
                                     {displayedText}
                                 </MemoizedMarkdown>
@@ -407,8 +399,8 @@ export function ChatMessage({
                                     </MemoizedMarkdown>
                                 )} */}
                                 <div
-                                    id="highlight-overlay"
-                                    className="absolute bg-yellow-300 opacity-50 rounded-md"
+                                    id={`highlight-overlay-${message.id}`}
+                                    className="absolute bg-yellow-300 opacity-50 rounded-md transition-all duration-100"
                                 />
                             </div>
                         </ErrorBoundary>
